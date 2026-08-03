@@ -28,6 +28,20 @@ export default function TeleprompterScroll() {
 
   return (
     <div className="teleprompter-container">
+      {/* Header */}
+      <header className="header">
+        <div className="header-content">
+          <div className="logo-section">
+            <img src="/speakscroll-logo.png" alt="SpeakScroll Logo" className="logo" />
+            <div className="branding">
+              <h1>SpeakScroll</h1>
+              <p className="tagline">Speak Clearly. Flow Naturally.</p>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Controls */}
       <div className="controls">
         <div className="control-group">
           <label>Speed:</label>
@@ -78,6 +92,7 @@ export default function TeleprompterScroll() {
         </button>
       </div>
 
+      {/* Script Input */}
       <textarea
         className="script-input"
         placeholder="Paste or type your script here..."
@@ -85,6 +100,7 @@ export default function TeleprompterScroll() {
         onChange={(e) => setScriptText(e.target.value)}
       />
 
+      {/* Script Display */}
       <div
         ref={displayRef}
         className={`script-display ${mirrorMode ? 'mirror' : ''}`}
