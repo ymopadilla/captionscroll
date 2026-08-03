@@ -30,6 +30,7 @@ export default function TeleprompterScroll() {
     <div className="teleprompter-container">
       {/* Header */}
       <header className="header">
+        <img src="/hero-banner.png" alt="SpeakScroll Hero" className="hero-banner" />
         <div className="header-content">
           <div className="logo-section">
             <img src="/speakscroll-logo.png" alt="SpeakScroll Logo" className="logo" />

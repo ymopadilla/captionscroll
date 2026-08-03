@@ -6,6 +6,13 @@
   background: linear-gradient(135deg, #f5f7fa 0%, #e9ecef 100%);
 }
 
+.hero-banner {
+  width: 100%;
+  height: auto;
+  display: block;
+  margin-bottom: 16px;
+}
+
 /* Header Styling */
 .header {
   background: linear-gradient(135deg, #0052cc 0%, #5e3fb8 100%);
