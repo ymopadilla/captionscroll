@@ -1,0 +1,142 @@
+.teleprompter-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  gap: 16px;
+  padding: 16px;
+  background: #f5f5f5;
+}
+
+.controls {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+  background: white;
+  padding: 12px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.control-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.control-group label {
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.control-group input[type="range"] {
+  width: 120px;
+  cursor: pointer;
+}
+
+.control-group span {
+  font-size: 12px;
+  min-width: 40px;
+  text-align: right;
+}
+
+.play-pause-btn,
+.reset-btn {
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: #007bff;
+  color: white;
+}
+
+.play-pause-btn:hover,
+.reset-btn:hover {
+  background: #0056b3;
+  transform: translateY(-1px);
+}
+
+.play-pause-btn.playing {
+  background: #dc3545;
+}
+
+.script-input {
+  flex: 0 0 150px;
+  padding: 12px;
+  font-size: 14px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  resize: vertical;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.script-display {
+  flex: 1;
+  background: white;
+  border: 2px solid #333;
+  border-radius: 6px;
+  padding: 32px;
+  overflow-y: scroll;
+  font-family: 'Georgia', serif;
+  line-height: 1.6;
+  color: #333;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  scroll-behavior: smooth;
+}
+
+.script-display.mirror {
+  transform: scaleX(-1);
+  direction: rtl;
+}
+
+.script-display::-webkit-scrollbar {
+  width: 8px;
+}
+
+.script-display::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.script-display::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+.script-display::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .teleprompter-container {
+    padding: 8px;
+    gap: 8px;
+  }
+
+  .controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .control-group input[type="range"] {
+    width: 100%;
+  }
+
+  .play-pause-btn,
+  .reset-btn {
+    width: 100%;
+  }
+
+  .script-input {
+    flex: 0 0 100px;
+  }
+
+  .script-display {
+    padding: 16px;
+    font-size: 18px !important;
+  }
+}
