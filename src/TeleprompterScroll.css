@@ -1,34 +1,40 @@
 .teleprompter-container {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100vh; /* fallback for older browsers */
+  height: 100dvh; /* dynamic viewport height — avoids mobile URL-bar overflow */
   gap: 0;
+  overflow: hidden; /* the app fits one screen; panels scroll internally */
   background: linear-gradient(135deg, #f5f7fa 0%, #e9ecef 100%);
 }
 
 .hero-banner {
   width: 100%;
   height: auto;
+  max-height: 80px; /* cap the banner so it never squeezes the split screen */
+  object-fit: contain;
+  object-position: left center;
   display: block;
-  margin-bottom: 16px;
 }
 
 /* Header Styling */
 .header {
+  flex: 0 0 auto; /* fixed-size row; never grows or shrinks */
   background: linear-gradient(135deg, #0052cc 0%, #5e3fb8 100%);
   color: white;
-  padding: 16px 24px;
+  padding: 10px 24px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 /* Controls */
 .controls {
+  flex: 0 0 auto;
   display: flex;
-  gap: 16px;
+  gap: 12px 16px;
   flex-wrap: wrap;
   align-items: center;
   background: white;
-  padding: 16px 24px;
+  padding: 10px 24px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   border-bottom: 1px solid #e9ecef;
 }
@@ -59,6 +65,25 @@
   min-width: 45px;
   text-align: right;
   font-weight: 500;
+}
+
+/* Embed Captions toggle */
+.caption-toggle .caption-radio {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: auto;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.caption-toggle input[type="radio"] {
+  accent-color: #0052cc;
+  cursor: pointer;
+}
+
+.caption-toggle input[type="radio"]:disabled {
+  cursor: not-allowed;
 }
 
 /* Buttons */
@@ -93,8 +118,12 @@
 
 /* Script Input */
 .script-input {
-  flex: 0 0 140px;
-  padding: 14px 16px;
+  /* Prefers ~110px tall but may shrink to 60px on short screens so the
+     split screen and recording controls always stay in view. */
+  flex: 0 1 110px;
+  min-height: 60px;
+  box-sizing: border-box;
+  padding: 10px 16px;
   font-size: 14px;
   border: 1px solid #dde2e6;
   border-radius: 0;
@@ -114,14 +143,135 @@
   background: #f9fafb;
 }
 
-/* Script Display */
+/* Split screen: camera (left 50%) + teleprompter (right 50%).
+   Fills ALL remaining viewport space after header/controls/input;
+   both panels are exact halves, so nothing can overflow sideways. */
+.split-screen {
+  position: relative; /* anchors the REC badge */
+  display: flex;
+  flex-direction: row;
+  flex: 1 1 0;
+  min-height: 180px; /* the split screen always keeps a usable height */
+  overflow: hidden;
+  width: 100%;
+}
+
+/* Preview OFF: collapse the camera panel to zero width. The <video>
+   stays mounted so the camera keeps feeding the recording pipeline;
+   the teleprompter expands to the full width. */
+.split-screen.no-preview .camera-panel {
+  flex: 0 0 0;
+  max-width: 0;
+}
+
+.split-screen.no-preview .script-display {
+  flex: 1 1 100%;
+  max-width: 100%;
+}
+
+/* Camera panel (left 50%) */
+.camera-panel {
+  position: relative;
+  flex: 0 0 50%;
+  max-width: 50%;
+  min-width: 0;
+  box-sizing: border-box;
+  background: #0d1117;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.camera-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Mirror the PREVIEW only (selfie view). The recording uses the raw
+     camera stream / canvas, so the saved video is not mirrored. */
+  transform: scaleX(-1);
+}
+
+.camera-error {
+  position: absolute; /* overlays the (blank) video element */
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+  text-align: center;
+  background: #0d1117;
+  color: #e9ecef;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.camera-error p {
+  max-width: 360px;
+}
+
+.retry-camera-btn {
+  margin-top: 12px;
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  background: linear-gradient(135deg, #0052cc 0%, #0041a3 100%);
+  color: white;
+}
+
+/* Pulsing REC badge — anchored to the split screen so it stays visible
+   whether the camera preview is shown or hidden */
+.rec-badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.rec-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #dc3545;
+  animation: rec-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes rec-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+
+/* Script Display (right 50% of the split screen) */
 .script-display {
-  flex: 1;
+  flex: 0 0 50%;
+  max-width: 50%;
+  min-width: 0;
+  min-height: 0;
+  box-sizing: border-box; /* padding stays inside the 50% width */
   background: white;
   border: none;
   border-radius: 0;
-  padding: 40px;
-  overflow-y: scroll;
+  padding: 24px 32px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  text-align: left;
   font-family: 'Georgia', 'Garamond', serif;
   line-height: 1.8;
   color: #2c3e50;
@@ -153,7 +303,92 @@
   background: linear-gradient(135deg, #0041a3 0%, #4a2c8f 100%);
 }
 
-/* Mobile responsive */
+/* Hidden canvas used only to composite the recording — never displayed */
+.compositing-canvas {
+  display: none;
+}
+
+/* Recording controls */
+.recording-controls {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  background: white;
+  padding: 10px 24px;
+  border-top: 1px solid #e9ecef;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.record-btn {
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: white;
+}
+
+.record-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.record-btn.start {
+  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+  box-shadow: 0 2px 6px rgba(220, 53, 69, 0.2);
+}
+
+.record-btn.start:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+}
+
+.record-btn.stop {
+  background: linear-gradient(135deg, #495057 0%, #343a40 100%);
+  box-shadow: 0 2px 6px rgba(52, 58, 64, 0.2);
+}
+
+.record-btn.stop:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(52, 58, 64, 0.3);
+}
+
+.record-btn.download {
+  background: linear-gradient(135deg, #198754 0%, #146c43 100%);
+  box-shadow: 0 2px 6px rgba(25, 135, 84, 0.2);
+}
+
+.record-btn.download:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(25, 135, 84, 0.3);
+}
+
+/* MM:SS timer */
+.recording-timer {
+  font-family: 'SF Mono', 'Consolas', 'Menlo', monospace;
+  font-size: 18px;
+  font-weight: 600;
+  color: #5a6c7d;
+  min-width: 64px;
+}
+
+.recording-timer.active {
+  color: #dc3545;
+}
+
+.recording-unsupported {
+  font-size: 13px;
+  color: #c82333;
+  font-weight: 500;
+}
+
+/* Mobile / tablet responsive */
 @media (max-width: 768px) {
   .teleprompter-container {
     height: 100vh;
@@ -188,8 +423,44 @@
     padding: 12px;
   }
 
+  /* Phones only: stack the split screen — camera on top, script below.
+     Tablets and desktops keep the side-by-side 50/50 layout. */
+  .split-screen {
+    flex-direction: column;
+  }
+
+  .camera-panel {
+    flex: 0 0 40%;
+    max-width: 100%; /* undo the 50% cap from the row layout */
+    min-height: 160px;
+  }
+
+  /* Preview OFF collapses vertically in the stacked layout */
+  .split-screen.no-preview .camera-panel {
+    flex: 0 0 0;
+    min-height: 0;
+    max-width: 100%;
+  }
+
   .script-display {
+    flex: 1 1 auto;
+    max-width: 100%; /* undo the 50% cap from the row layout */
     padding: 20px;
     font-size: 18px !important;
+  }
+
+  .recording-controls {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .record-btn {
+    width: 100%;
+  }
+
+  .recording-timer {
+    text-align: center;
   }
 }
