@@ -9,9 +9,10 @@
 }
 
 .hero-banner {
-  width: 100%;
+  width: auto;
   height: auto;
-  max-height: 80px; /* cap the banner so it never squeezes the split screen */
+  max-height: 56px; /* cap the banner so it never squeezes the stage */
+  max-width: 50%;
   object-fit: contain;
   object-position: left center;
   display: block;
@@ -22,19 +23,109 @@
   flex: 0 0 auto; /* fixed-size row; never grows or shrinks */
   background: linear-gradient(135deg, #0052cc 0%, #5e3fb8 100%);
   color: white;
-  padding: 10px 24px;
+  padding: 8px 24px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* App header: banner left, account/tier cluster right */
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.app-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.tier-badge {
+  padding: 3px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+}
+
+.tier-badge.tier-starter {
+  background: #ffd45e;
+  color: #5a4400;
+  border-color: #ffd45e;
+}
+
+.tier-badge.tier-pro {
+  background: #12e0b8;
+  color: #03443a;
+  border-color: #12e0b8;
+}
+
+.upgrade-link {
+  color: white;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  padding: 5px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.upgrade-link:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.user-email {
+  font-size: 12px;
+  opacity: 0.85;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.signout-btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.18);
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.signout-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Transient status banner (checkout confirmation, effect errors) */
+.app-banner {
+  flex: 0 0 auto;
+  padding: 8px 24px;
+  background: #eef6ff;
+  border-bottom: 1px solid #cfe4ff;
+  color: #0041a3;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 /* Controls */
 .controls {
   flex: 0 0 auto;
   display: flex;
-  gap: 12px 16px;
+  gap: 10px 16px;
   flex-wrap: wrap;
   align-items: center;
   background: white;
-  padding: 10px 24px;
+  padding: 8px 24px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   border-bottom: 1px solid #e9ecef;
 }
@@ -67,6 +158,16 @@
   font-weight: 500;
 }
 
+.control-group select {
+  padding: 5px 8px;
+  border: 1px solid #dde2e6;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #2c3e50;
+  background: white;
+  cursor: pointer;
+}
+
 /* Embed Captions toggle */
 .caption-toggle .caption-radio {
   display: flex;
@@ -84,6 +185,92 @@
 
 .caption-toggle input[type="radio"]:disabled {
   cursor: not-allowed;
+}
+
+/* Green screen extras */
+.gs-upload {
+  font-size: 12px;
+  color: #0052cc;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px dashed #0052cc;
+  border-radius: 6px;
+  padding: 5px 10px;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gs-upload input[type="file"] {
+  display: none;
+}
+
+.gs-status {
+  font-size: 11px;
+  color: #8a6d1a;
+  min-width: auto;
+}
+
+.gs-status.ready {
+  color: #146c43;
+  font-weight: 700;
+}
+
+/* Pro filters */
+.pro-filters .filter-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: auto;
+}
+
+.pro-filters input[type="range"] {
+  width: 70px;
+}
+
+/* Tier-gated upsell links (SubscriptionGate mode="hide") */
+.gate-upsell-link {
+  font-size: 12px;
+  font-weight: 600;
+  color: #5e3fb8;
+  text-decoration: none;
+  padding: 5px 10px;
+  border: 1px dashed #b9a6e8;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.gate-upsell-link:hover {
+  background: #f4f0fc;
+}
+
+/* Tier-gated overlay wrapper (SubscriptionGate default mode) */
+.gate-wrapper {
+  position: relative;
+  display: inline-flex;
+}
+
+.gate-locked-content {
+  opacity: 0.4;
+  pointer-events: none;
+  filter: grayscale(0.6);
+}
+
+.gate-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.65);
+  color: #5e3fb8;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  text-align: center;
 }
 
 /* Buttons */
@@ -116,10 +303,64 @@
   box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
 }
 
+/* Saved scripts bar */
+.script-bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 24px;
+  background: #fbfcfd;
+  border-bottom: 1px solid #e9ecef;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.script-bar select {
+  padding: 5px 8px;
+  border: 1px solid #dde2e6;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #2c3e50;
+  background: white;
+  max-width: 280px;
+}
+
+.script-bar button {
+  padding: 5px 12px;
+  border: 1px solid #dde2e6;
+  border-radius: 6px;
+  background: white;
+  font-size: 12px;
+  font-weight: 600;
+  color: #2c3e50;
+  cursor: pointer;
+}
+
+.script-bar button:hover:not(:disabled) {
+  border-color: #0052cc;
+  color: #0052cc;
+}
+
+.script-bar button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.script-bar .script-delete:hover {
+  border-color: #c82333;
+  color: #c82333;
+}
+
+.script-status {
+  font-size: 12px;
+  font-weight: 600;
+  color: #146c43;
+}
+
 /* Script Input */
 .script-input {
   /* Prefers ~110px tall but may shrink to 60px on short screens so the
-     split screen and recording controls always stay in view. */
+     stage and recording controls always stay in view. */
   flex: 0 1 110px;
   min-height: 60px;
   box-sizing: border-box;
@@ -143,44 +384,50 @@
   background: #f9fafb;
 }
 
-/* Split screen: camera (left 50%) + teleprompter (right 50%).
-   Fills ALL remaining viewport space after header/controls/input;
-   both panels are exact halves, so nothing can overflow sideways. */
-.split-screen {
-  position: relative; /* anchors the REC badge */
-  display: flex;
-  flex-direction: row;
+/* Stage: full-width teleprompter with the camera floating above it as
+   a draggable picture-in-picture window. Fills ALL remaining viewport
+   space after header/controls/input. */
+.stage {
+  position: relative; /* anchors the PIP + REC badge */
   flex: 1 1 0;
-  min-height: 180px; /* the split screen always keeps a usable height */
+  min-height: 180px; /* the stage always keeps a usable height */
   overflow: hidden;
   width: 100%;
 }
 
-/* Preview OFF: collapse the camera panel to zero width. The <video>
-   stays mounted so the camera keeps feeding the recording pipeline;
-   the teleprompter expands to the full width. */
-.split-screen.no-preview .camera-panel {
-  flex: 0 0 0;
-  max-width: 0;
-}
-
-.split-screen.no-preview .script-display {
-  flex: 1 1 100%;
-  max-width: 100%;
-}
-
-/* Camera panel (left 50%) */
-.camera-panel {
-  position: relative;
-  flex: 0 0 50%;
-  max-width: 50%;
-  min-width: 0;
-  box-sizing: border-box;
+/* Camera PIP (picture-in-picture) */
+.camera-pip {
+  position: absolute;
+  z-index: 3;
   background: #0d1117;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  border: 2px solid rgba(255, 255, 255, 0.65);
+  opacity: 0.85; /* semi-transparent so text shows through if it overlaps */
+  cursor: grab;
+  touch-action: none; /* pointer events handle drag on touch screens */
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
+}
+
+.camera-pip:active {
+  cursor: grabbing;
+}
+
+/* Hidden: keep the <video> mounted (camera keeps feeding the recorder),
+   just invisible and non-interactive for the user. */
+.camera-pip.pip-hidden {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* A camera error needs room for the message + Retry button. */
+.camera-pip.pip-error {
+  min-width: 240px;
+  min-height: 170px;
+  opacity: 1;
 }
 
 .camera-video {
@@ -190,6 +437,35 @@
   /* Mirror the PREVIEW only (selfie view). The recording uses the raw
      camera stream / canvas, so the saved video is not mirrored. */
   transform: scaleX(-1);
+  pointer-events: none; /* drags land on the PIP container */
+}
+
+.pip-note {
+  position: absolute;
+  bottom: 4px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.85);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
+}
+
+.pip-resize-handle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 18px;
+  height: 18px;
+  cursor: nwse-resize;
+  background: linear-gradient(
+    135deg,
+    transparent 50%,
+    rgba(255, 255, 255, 0.75) 50%
+  );
+  border-bottom-right-radius: 8px;
 }
 
 .camera-error {
@@ -199,24 +475,25 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: 12px;
   box-sizing: border-box;
   text-align: center;
   background: #0d1117;
   color: #e9ecef;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  font-size: 14px;
-  line-height: 1.6;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .camera-error p {
   max-width: 360px;
+  margin: 0 0 4px;
 }
 
 .retry-camera-btn {
-  margin-top: 12px;
-  padding: 8px 18px;
-  font-size: 13px;
+  margin-top: 8px;
+  padding: 7px 16px;
+  font-size: 12px;
   font-weight: 600;
   border: none;
   border-radius: 6px;
@@ -225,8 +502,8 @@
   color: white;
 }
 
-/* Pulsing REC badge — anchored to the split screen so it stays visible
-   whether the camera preview is shown or hidden */
+/* Pulsing REC badge — anchored to the stage so it stays visible whether
+   the camera PIP is shown or hidden */
 .rec-badge {
   position: absolute;
   top: 12px;
@@ -258,17 +535,15 @@
   50% { opacity: 0.25; }
 }
 
-/* Script Display (right 50% of the split screen) */
+/* Script Display — full width of the stage */
 .script-display {
-  flex: 0 0 50%;
-  max-width: 50%;
-  min-width: 0;
-  min-height: 0;
-  box-sizing: border-box; /* padding stays inside the 50% width */
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
   background: white;
   border: none;
   border-radius: 0;
-  padding: 24px 32px;
+  padding: 24px clamp(32px, 8vw, 120px);
   overflow-y: auto;
   overflow-x: hidden;
   text-align: left;
@@ -313,7 +588,7 @@
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px 16px;
   flex-wrap: wrap;
   background: white;
   padding: 10px 24px;
@@ -369,6 +644,58 @@
   box-shadow: 0 4px 12px rgba(25, 135, 84, 0.3);
 }
 
+/* Free tier: locked-recording upsell next to the disabled button */
+.record-locked {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: #5e3fb8;
+  text-decoration: none;
+  padding: 8px 14px;
+  border: 1px dashed #b9a6e8;
+  border-radius: 6px;
+  background: #f8f5ff;
+}
+
+.record-locked:hover {
+  background: #efe8fc;
+}
+
+/* Pro: social export buttons */
+.social-export {
+  display: inline-flex;
+  gap: 8px;
+  min-width: auto;
+}
+
+.social-btn {
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid #dde2e6;
+  border-radius: 6px;
+  background: white;
+  color: #2c3e50;
+  cursor: pointer;
+}
+
+.social-btn:hover:not(:disabled) {
+  border-color: #0052cc;
+  color: #0052cc;
+}
+
+.social-btn:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.export-error {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 12px;
+  color: #c82333;
+  font-weight: 600;
+}
+
 /* MM:SS timer */
 .recording-timer {
   font-family: 'SF Mono', 'Consolas', 'Menlo', monospace;
@@ -388,79 +715,130 @@
   font-weight: 500;
 }
 
+/* Pro: takes manager */
+.takes-bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 8px 24px;
+  background: #fbfcfd;
+  border-top: 1px solid #e9ecef;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.takes-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #2c3e50;
+}
+
+.take-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border: 1px solid #dde2e6;
+  border-radius: 999px;
+  background: white;
+  font-size: 12px;
+  color: #2c3e50;
+}
+
+.take-chip.selected {
+  border-color: #0052cc;
+  background: #f0f6ff;
+}
+
+.take-chip label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.take-chip input[type='radio'] {
+  accent-color: #0052cc;
+}
+
+.take-preview,
+.take-delete {
+  border: none;
+  background: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: #0052cc;
+  cursor: pointer;
+  padding: 0;
+}
+
+.take-delete {
+  color: #c82333;
+}
+
+.take-preview-video {
+  width: 100%;
+  max-width: 320px;
+  max-height: 180px;
+  border-radius: 8px;
+  background: black;
+}
+
 /* Mobile / tablet responsive */
 @media (max-width: 768px) {
   .teleprompter-container {
     height: 100vh;
+    height: 100dvh;
   }
 
   .header {
-    padding: 16px;
+    padding: 8px 12px;
+  }
+
+  .hero-banner {
+    max-height: 40px;
+  }
+
+  .app-header-right {
+    gap: 8px;
+  }
+
+  .user-email {
+    display: none; /* keep the header to one tidy row on phones */
   }
 
   .controls {
-    flex-direction: column;
-    align-items: stretch;
-    padding: 12px;
-    gap: 12px;
-  }
-
-  .control-group {
-    width: 100%;
+    padding: 8px 12px;
+    gap: 8px 12px;
   }
 
   .control-group input[type="range"] {
-    flex: 1;
+    width: 100px;
   }
 
-  .play-pause-btn,
-  .reset-btn {
-    width: 100%;
+  .script-bar {
+    padding: 6px 12px;
   }
 
   .script-input {
-    flex: 0 0 100px;
-    padding: 12px;
-  }
-
-  /* Phones only: stack the split screen — camera on top, script below.
-     Tablets and desktops keep the side-by-side 50/50 layout. */
-  .split-screen {
-    flex-direction: column;
-  }
-
-  .camera-panel {
-    flex: 0 0 40%;
-    max-width: 100%; /* undo the 50% cap from the row layout */
-    min-height: 160px;
-  }
-
-  /* Preview OFF collapses vertically in the stacked layout */
-  .split-screen.no-preview .camera-panel {
-    flex: 0 0 0;
-    min-height: 0;
-    max-width: 100%;
+    flex: 0 1 80px;
+    padding: 10px 12px;
   }
 
   .script-display {
-    flex: 1 1 auto;
-    max-width: 100%; /* undo the 50% cap from the row layout */
-    padding: 20px;
+    padding: 18px 20px;
     font-size: 18px !important;
   }
 
   .recording-controls {
-    flex-direction: column;
-    align-items: stretch;
-    padding: 12px;
-    gap: 10px;
+    padding: 10px 12px;
+    gap: 8px 10px;
   }
 
   .record-btn {
-    width: 100%;
-  }
-
-  .recording-timer {
-    text-align: center;
+    padding: 9px 14px;
+    font-size: 13px;
   }
 }
