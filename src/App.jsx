@@ -1,11 +1,49 @@
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import TeleprompterScroll from './TeleprompterScroll';
+import LandingPage from './pages/LandingPage';
+import PricingPage from './pages/PricingPage';
+import Login from './pages/Login';
+import Signup from './pages/Signup';
+import { AuthProvider, useAuth } from './hooks/useAuth';
 import './App.css';
+
+/** Redirects signed-out visitors to /login, remembering where they were headed. */
+function RequireAuth({ children }) {
+  const { user, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) {
+    return <div className="app-loading">Loading…</div>;
+  }
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
+  }
+  return children;
+}
 
 function App() {
   return (
-    <div className="App">
-      <TeleprompterScroll />
-    </div>
+    <AuthProvider>
+      <BrowserRouter>
+        <div className="App">
+          <Routes>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/pricing" element={<PricingPage />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route
+              path="/app"
+              element={
+                <RequireAuth>
+                  <TeleprompterScroll />
+                </RequireAuth>
+              }
+            />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </div>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
 

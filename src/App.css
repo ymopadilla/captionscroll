@@ -3,3 +3,13 @@
   margin: 0;
   padding: 0;
 }
+
+.app-loading {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #5a6c7d;
+  background: linear-gradient(135deg, #f5f7fa 0%, #e9ecef 100%);
+}
