@@ -223,8 +223,9 @@
 
 .site-footer-links {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
-  gap: 22px;
+  gap: 12px 22px;
   margin-bottom: 10px;
 }
 
@@ -240,6 +241,19 @@
 
 .site-footer p {
   margin: 0;
+}
+
+.site-footer-contact {
+  margin: 0 0 10px;
+}
+
+.site-footer-contact a {
+  color: #9aa4b2;
+  text-decoration: none;
+}
+
+.site-footer-contact a:hover {
+  color: white;
 }
 
 /* ---------- Auth pages ---------- */
@@ -648,6 +662,69 @@
   font-size: 14px;
   line-height: 1.65;
   color: #5a6c7d;
+}
+
+/* ---------- Legal pages (/terms, /privacy) ---------- */
+
+.legal-main {
+  flex: 1;
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 40px clamp(20px, 5vw, 40px) 64px;
+  box-sizing: border-box;
+}
+
+.legal-main h1 {
+  font-size: clamp(28px, 4vw, 36px);
+  line-height: 1.2;
+  color: #2c3e50;
+  margin: 0 0 14px;
+}
+
+.legal-meta {
+  font-size: 14px;
+  color: #5a6c7d;
+  margin: 0 0 4px;
+}
+
+.legal-intro {
+  margin-top: 18px;
+}
+
+.legal-main h2 {
+  font-size: 20px;
+  color: #2c3e50;
+  margin: 30px 0 10px;
+}
+
+.legal-main p {
+  font-size: 15px;
+  line-height: 1.7;
+  color: #43586a;
+  margin: 0 0 12px;
+}
+
+.legal-main ul {
+  margin: 0 0 12px;
+  padding-left: 24px;
+}
+
+.legal-main li {
+  font-size: 15px;
+  line-height: 1.7;
+  color: #43586a;
+  margin-bottom: 6px;
+}
+
+.legal-main a {
+  color: #0052cc;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.legal-main a:hover {
+  text-decoration: underline;
 }
 
 /* ---------- Responsive ---------- */

@@ -4,6 +4,8 @@ import LandingPage from './pages/LandingPage';
 import PricingPage from './pages/PricingPage';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import TermsPage from './pages/TermsPage';
+import PrivacyPage from './pages/PrivacyPage';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import './App.css';
 
@@ -31,6 +33,8 @@ function App() {
             <Route path="/pricing" element={<PricingPage />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
+            <Route path="/terms" element={<TermsPage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
             <Route
               path="/app"
               element={

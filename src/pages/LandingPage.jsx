@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import NavHeader from '../components/NavHeader';
+import SiteFooter from '../components/SiteFooter';
 import './site.css';
 
 const FEATURES = [
@@ -69,16 +70,7 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="site-footer">
-        <div className="site-footer-links">
-          <Link to="/pricing">Pricing</Link>
-          <a href="mailto:hello@speakscroll.com">Contact</a>
-        </div>
-        <p>
-          © {new Date().getFullYear()} Digital Navigation Solutions LLC. All
-          rights reserved.
-        </p>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }
