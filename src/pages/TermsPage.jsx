@@ -1,9 +1,15 @@
 import NavHeader from '../components/NavHeader';
 import SiteFooter from '../components/SiteFooter';
+import usePageMeta from '../lib/usePageMeta';
 import './site.css';
 
 /** Terms of Service — content approved August 2026. */
 export default function TermsPage() {
+  usePageMeta(
+    'Terms of Service — SpeakScroll',
+    'Terms of Service for SpeakScroll, a professional teleprompter and video captioning tool by Digital Navigation Solutions LLC.'
+  );
+
   return (
     <div className="site-page">
       <NavHeader />

@@ -1,9 +1,15 @@
 import NavHeader from '../components/NavHeader';
 import SiteFooter from '../components/SiteFooter';
+import usePageMeta from '../lib/usePageMeta';
 import './site.css';
 
 /** Privacy Policy — content approved August 2026. */
 export default function PrivacyPage() {
+  usePageMeta(
+    'Privacy Policy — SpeakScroll',
+    'Learn how SpeakScroll collects, uses, and protects your data, including account, billing, and script information.'
+  );
+
   return (
     <div className="site-page">
       <NavHeader />
