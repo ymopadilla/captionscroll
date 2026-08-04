@@ -4,6 +4,7 @@ import NavHeader from '../components/NavHeader';
 import SiteFooter from '../components/SiteFooter';
 import StripeCheckout from '../components/StripeCheckout';
 import { PRICING } from '../lib/tiers';
+import usePageMeta from '../lib/usePageMeta';
 import './site.css';
 
 const COMPARISON = [
@@ -54,6 +55,11 @@ function Check({ on }) {
 }
 
 export default function PricingPage() {
+  usePageMeta(
+    'SpeakScroll Pricing — Free, Starter & Pro Plans',
+    'Start free. Upgrade to Starter ($7.99/mo) for unlimited recording, or Pro ($14.99/mo) for speech-sync captions, green screen & more. 14-day free trial.'
+  );
+
   const [cycle, setCycle] = useState('monthly');
   const [searchParams] = useSearchParams();
   const cancelled = searchParams.get('checkout') === 'cancelled';
@@ -193,6 +199,11 @@ export default function PricingPage() {
             </details>
           ))}
         </div>
+
+        <p className="compare-link">
+          Wondering how we stack up against other teleprompter apps?{' '}
+          <Link to="/compare">See how we compare →</Link>
+        </p>
       </main>
 
       <SiteFooter />
