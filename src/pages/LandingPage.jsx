@@ -1,32 +1,78 @@
 import { Link } from 'react-router-dom';
 import NavHeader from '../components/NavHeader';
 import SiteFooter from '../components/SiteFooter';
+import usePageMeta from '../lib/usePageMeta';
 import './site.css';
 
 const FEATURES = [
   {
     icon: '🎬',
+    iconLabel: 'Professional teleprompter icon',
     title: 'Professional Teleprompter',
     body: 'Read scripts confidently without stumbling. Adjustable speed, font size, and mirror mode keep you in control.',
   },
   {
     icon: '💬',
+    iconLabel: 'Caption embedding icon',
     title: 'Perfect Captions',
     body: 'Script-based captions embedded right into your video — 100% accurate, no transcription errors, ever.',
   },
   {
     icon: '🖼️',
+    iconLabel: 'Green screen background icon',
     title: 'Green Screen',
     body: 'Look polished anywhere. Blur your background, swap in a solid color, or upload your own backdrop.',
   },
   {
     icon: '🎯',
+    iconLabel: 'One-take confidence target icon',
     title: 'One-Take Confidence',
     body: 'Nail your delivery in 1–2 attempts, not 20. Record, review, and download broadcast-ready video.',
   },
 ];
 
+const FAQS = [
+  {
+    q: 'What makes SpeakScroll different from other teleprompter apps?',
+    a: 'SpeakScroll embeds your actual script as video captions — not AI-generated captions. Since you wrote the script, the captions are 100% accurate, with zero transcription errors.',
+  },
+  {
+    q: 'Do I need to install anything?',
+    a: 'No. SpeakScroll works entirely in your web browser — no app download required.',
+  },
+  {
+    q: "What's included in the free plan?",
+    a: 'Unlimited teleprompter practice, camera preview, and full reading controls. Video recording requires a Starter or Pro subscription.',
+  },
+  {
+    q: 'How does the 14-day free trial work?',
+    a: 'When you subscribe to Starter or Pro, you get 14 days of full access before any charge. Cancel anytime during the trial with no cost.',
+  },
+  {
+    q: 'Can I use SpeakScroll for YouTube or TikTok videos?',
+    a: 'Yes. SpeakScroll works for any platform — YouTube, TikTok, Instagram, LinkedIn, or internal training videos.',
+  },
+  {
+    q: "What's the difference between Starter and Pro?",
+    a: 'Starter includes unlimited recording, script-based captions, and basic green screen. Pro adds speech-to-text caption sync, advanced green screen with custom backgrounds, video filters, multiple takes, and one-click social export.',
+  },
+  {
+    q: 'Is my script or video data private?',
+    a: (
+      <>
+        Yes. Your scripts and recordings are private to your account. See our{' '}
+        <Link to="/privacy">Privacy Policy</Link> for full details.
+      </>
+    ),
+  },
+];
+
 export default function LandingPage() {
+  usePageMeta(
+    'SpeakScroll — Teleprompter with Perfect Video Captions',
+    'Professional teleprompter for educators, trainers & speakers. Record video with 100% accurate captions embedded — no AI transcription errors, ever.'
+  );
+
   return (
     <div className="site-page">
       <NavHeader />
@@ -35,7 +81,7 @@ export default function LandingPage() {
       <header className="hero">
         <img
           src="/hero-banner.png"
-          alt="SpeakScroll"
+          alt="SpeakScroll teleprompter app logo with tagline Speak Clearly Flow Naturally"
           className="hero-image"
         />
         <h1 className="hero-headline">Speak Clearly. Flow Naturally.</h1>
@@ -52,13 +98,30 @@ export default function LandingPage() {
       <section className="features">
         {FEATURES.map((f) => (
           <div className="feature-card" key={f.title}>
-            <div className="feature-icon" aria-hidden="true">
+            <div className="feature-icon" role="img" aria-label={f.iconLabel}>
               {f.icon}
             </div>
             <h2>{f.title}</h2>
             <p>{f.body}</p>
           </div>
         ))}
+      </section>
+
+      {/* FAQ */}
+      <section className="home-faq">
+        <h2 className="faq-title">Frequently asked questions</h2>
+        <div className="faq-list">
+          {FAQS.map((f) => (
+            <details className="faq-item" key={f.q}>
+              <summary>{f.q}</summary>
+              <p>{f.a}</p>
+            </details>
+          ))}
+        </div>
+        <p className="compare-link">
+          Wondering how we stack up?{' '}
+          <Link to="/compare">See how SpeakScroll compares →</Link>
+        </p>
       </section>
 
       {/* Call to action */}

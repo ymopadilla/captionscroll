@@ -750,3 +750,55 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ---------- Compare page (/compare) + compare links ---------- */
+
+.compare-main .cmp-table {
+  margin: 6px 0 10px;
+}
+
+.compare-main .cmp-table td {
+  color: #43586a;
+}
+
+.compare-cta {
+  text-align: center;
+  margin-top: 34px;
+}
+
+.compare-link {
+  text-align: center;
+  font-size: 15px;
+  color: #5a6c7d;
+  margin: 26px 0 0;
+}
+
+.compare-link a {
+  color: #0052cc;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.compare-link a:hover {
+  text-decoration: underline;
+}
+
+/* ---------- Homepage FAQ ---------- */
+
+.home-faq {
+  padding: 0 clamp(20px, 5vw, 40px) 48px;
+}
+
+.home-faq .faq-title {
+  margin-top: 24px;
+}
+
+.faq-item a {
+  color: #0052cc;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.faq-item a:hover {
+  text-decoration: underline;
+}
