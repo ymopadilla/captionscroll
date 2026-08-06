@@ -1,11 +1,11 @@
 {
   "name": "CaptionScroll",
   "short_name": "CaptionScroll",
-  "description": "Professional teleprompter with script-based video caption embedding for educators, trainers, and speakers.",
+  "description": "Teleprompter with perfect video captions",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#0052cc",
+  "background_color": "#FFFFFF",
+  "theme_color": "#0052CC",
   "orientation": "portrait-primary",
   "icons": [
     {
