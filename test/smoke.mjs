@@ -116,7 +116,7 @@ try {
     await page.goto(BASE + '/');
     check(
       'headline renders',
-      (await page.textContent('h1')).includes('Speak Clearly')
+      (await page.textContent('h1')).includes('CaptionScroll')
     );
     check(
       'CTA links to signup',

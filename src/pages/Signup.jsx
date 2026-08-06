@@ -28,7 +28,13 @@ export default function Signup() {
       return;
     }
     setBusy(true);
-    const { data, error: err } = await signUp(email, password);
+    const dest = plan && cycle ? `/app?plan=${plan}&cycle=${cycle}` : '/app';
+    // If email confirmation is on, the confirmation link should land the
+    // user in the app (not on the landing page). The URL must be in the
+    // Supabase Auth "Redirect URLs" allow-list.
+    const { data, error: err } = await signUp(email, password, {
+      emailRedirectTo: `${window.location.origin}${dest}`,
+    });
     setBusy(false);
     if (err) {
       setError(err.message);
@@ -36,8 +42,6 @@ export default function Signup() {
     }
     // With email confirmation disabled, a session comes back immediately.
     if (data?.session) {
-      const dest =
-        plan && cycle ? `/app?plan=${plan}&cycle=${cycle}` : '/app';
       navigate(dest, { replace: true });
     } else {
       setNotice(

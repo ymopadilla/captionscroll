@@ -1,21 +1,27 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { STRIPE_PRODUCTS } from '../lib/tiers';
+import { TIERS } from '../lib/tiers';
 import { useAuth } from '../hooks/useAuth';
 
 /**
  * Starts a Stripe Checkout for a tier + billing cycle by asking the
  * serverless function for a hosted checkout URL, then redirecting.
+ *
+ * The client only sends the plan (tier + cycle); the server resolves
+ * the matching Stripe product/price in whatever mode (test or live)
+ * its secret key is in, so no product ids are hardcoded here.
  */
 export async function startCheckout({ tier, cycle, user }) {
-  const productId = STRIPE_PRODUCTS[tier]?.[cycle];
-  if (!productId) throw new Error(`Unknown plan: ${tier}/${cycle}`);
+  if (!TIERS.includes(tier) || !['monthly', 'annual'].includes(cycle)) {
+    throw new Error(`Unknown plan: ${tier}/${cycle}`);
+  }
 
   const res = await fetch('/api/create-checkout-session', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      productId,
+      tier,
+      cycle,
       userId: user.id,
       email: user.email,
       origin: window.location.origin,

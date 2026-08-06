@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import NavHeader from '../components/NavHeader';
 import SiteFooter from '../components/SiteFooter';
 import StripeCheckout from '../components/StripeCheckout';
+import { useAuth } from '../hooks/useAuth';
 import { PRICING } from '../lib/tiers';
 import usePageMeta from '../lib/usePageMeta';
 import './site.css';
@@ -60,6 +61,7 @@ export default function PricingPage() {
     'Start free. Upgrade to Starter ($7.99/mo) for unlimited recording, or Pro ($14.99/mo) for speech-sync captions, green screen & more. 14-day free trial.'
   );
 
+  const { user } = useAuth();
   const [cycle, setCycle] = useState('monthly');
   const [searchParams] = useSearchParams();
   const cancelled = searchParams.get('checkout') === 'cancelled';
@@ -116,8 +118,10 @@ export default function PricingPage() {
               <li>See yourself via camera preview</li>
             </ul>
             <p className="price-desc">Perfect for learning, not for recording yet</p>
-            <Link to="/signup" className="price-btn secondary">
-              Get Started
+            {/* Signed-in users already have the Free tier — take them
+                straight to the app instead of the signup form. */}
+            <Link to={user ? '/app' : '/signup'} className="price-btn secondary">
+              {user ? 'Open App' : 'Get Started'}
             </Link>
           </div>
 

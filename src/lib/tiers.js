@@ -1,10 +1,11 @@
 /**
- * Single source of truth for subscription tiers, Stripe products,
- * and pricing shown in the UI.
+ * Single source of truth for subscription tiers and pricing shown
+ * in the UI.
  *
- * NOTE: these are Stripe PRODUCT ids (test mode). The serverless
- * function /api/create-checkout-session resolves the active recurring
- * price for a product at runtime, so no price ids are hardcoded.
+ * NOTE: no Stripe product/price ids live in the client. The serverless
+ * function /api/create-checkout-session resolves the right product and
+ * active recurring price at runtime for whatever mode (test or live)
+ * the server's STRIPE_SECRET_KEY is in.
  */
 
 export const TIERS = ['free', 'starter', 'pro'];
@@ -17,17 +18,6 @@ export function tierAtLeast(tier, required) {
 }
 
 export const TRIAL_DAYS = 14;
-
-export const STRIPE_PRODUCTS = {
-  starter: {
-    monthly: 'prod_V0Yvm3n3eidvjD',
-    annual: 'prod_V0Z65x8g6nlEz2',
-  },
-  pro: {
-    monthly: 'prod_V0ZxEZPSd45imy',
-    annual: 'prod_V0a2XEe2BBCtyo',
-  },
-};
 
 export const PRICING = {
   starter: { monthly: 7.99, annual: 60 },
