@@ -6,8 +6,8 @@ import './site.css';
 /** Terms of Service — content approved August 2026. */
 export default function TermsPage() {
   usePageMeta(
-    'Terms of Service — SpeakScroll',
-    'Terms of Service for SpeakScroll, a professional teleprompter and video captioning tool by Digital Navigation Solutions LLC.'
+    'Terms of Service — CaptionScroll',
+    'Terms of Service for CaptionScroll, a professional teleprompter and video captioning tool by Digital Navigation Solutions LLC.'
   );
 
   return (
@@ -24,10 +24,10 @@ export default function TermsPage() {
         </p>
 
         <p className="legal-intro">
-          Welcome to SpeakScroll, a product of Digital Navigation Solutions LLC
+          Welcome to CaptionScroll, a product of Digital Navigation Solutions LLC
           (&ldquo;Company,&rdquo; &ldquo;we,&rdquo; &ldquo;us,&rdquo; or
           &ldquo;our&rdquo;). These Terms of Service (&ldquo;Terms&rdquo;)
-          govern your access to and use of the SpeakScroll website,
+          govern your access to and use of the CaptionScroll website,
           application, and related services (collectively, the
           &ldquo;Service&rdquo;). By creating an account or using the Service,
           you agree to these Terms. If you do not agree, do not use the
@@ -36,7 +36,7 @@ export default function TermsPage() {
 
         <h2>1. Description of Service</h2>
         <p>
-          SpeakScroll is a web-based teleprompter application that allows users
+          CaptionScroll is a web-based teleprompter application that allows users
           to write scripts, read them aloud using an on-screen scrolling
           display, and optionally record video with the script text embedded as
           captions. The Service is offered on a freemium basis with paid
@@ -66,7 +66,7 @@ export default function TermsPage() {
         <h2>4. Subscription Plans, Billing, and Free Trials</h2>
         <ul>
           <li>
-            SpeakScroll offers a Free tier and two paid tiers: Starter and Pro,
+            CaptionScroll offers a Free tier and two paid tiers: Starter and Pro,
             each available on monthly or annual billing.
           </li>
           <li>

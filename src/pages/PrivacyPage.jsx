@@ -6,8 +6,8 @@ import './site.css';
 /** Privacy Policy — content approved August 2026. */
 export default function PrivacyPage() {
   usePageMeta(
-    'Privacy Policy — SpeakScroll',
-    'Learn how SpeakScroll collects, uses, and protects your data, including account, billing, and script information.'
+    'Privacy Policy — CaptionScroll',
+    'Learn how CaptionScroll collects, uses, and protects your data, including account, billing, and script information.'
   );
 
   return (
@@ -26,7 +26,7 @@ export default function PrivacyPage() {
         <p className="legal-intro">
           Digital Navigation Solutions LLC (&ldquo;Company,&rdquo;
           &ldquo;we,&rdquo; &ldquo;us,&rdquo; or &ldquo;our&rdquo;) operates
-          SpeakScroll (the &ldquo;Service&rdquo;). This Privacy Policy explains
+          CaptionScroll (the &ldquo;Service&rdquo;). This Privacy Policy explains
           what information we collect, how we use it, and your rights regarding
           that information.
         </p>

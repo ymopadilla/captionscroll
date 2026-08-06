@@ -7,7 +7,7 @@ export default function SiteFooter() {
       <div className="site-footer-links">
         <Link to="/pricing">Pricing</Link>
         <Link to="/compare">Compare</Link>
-        <a href="mailto:hello@speakscroll.com">Contact</a>
+        <a href="mailto:hello@captionscroll.com">Contact</a>
         <Link to="/terms">Terms of Service</Link>
         <Link to="/privacy">Privacy Policy</Link>
       </div>

@@ -34,7 +34,7 @@ export default function Login() {
       <main className="auth-main">
         <form className="auth-card" onSubmit={handleSubmit}>
           <h1>Welcome back</h1>
-          <p className="auth-sub">Sign in to your SpeakScroll account</p>
+          <p className="auth-sub">Sign in to your CaptionScroll account</p>
 
           <label className="auth-label" htmlFor="login-email">
             Email
@@ -67,7 +67,7 @@ export default function Login() {
           </button>
 
           <p className="auth-switch">
-            New to SpeakScroll? <Link to="/signup">Create an account</Link>
+            New to CaptionScroll? <Link to="/signup">Create an account</Link>
           </p>
         </form>
       </main>

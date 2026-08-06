@@ -1,4 +1,4 @@
-# SpeakScroll
+# CaptionScroll
 
 A web-based teleprompter application for speakers, educators, trainers, and presenters.
 
@@ -32,8 +32,8 @@ Paste your script, hit play, and watch it scroll at your pace. Includes mirror m
 
 1. Clone the repo:
 ```bash
-git clone https://github.com/YOUR_USERNAME/speakscroll.git
-cd speakscroll
+git clone https://github.com/YOUR_USERNAME/captionscroll.git
+cd captionscroll
 ```
 
 2. Install dependencies:
@@ -61,7 +61,7 @@ Open http://localhost:5173 in your browser.
 4. Deploy
 
 ## Project Structure
-speakscroll/
+captionscroll/
 ├── src/
 │ ├── components/ # React components
 │ ├── pages/ # Page components

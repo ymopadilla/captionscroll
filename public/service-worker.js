@@ -2,7 +2,7 @@
 // Does not aggressively cache — the app depends on live Supabase/Stripe
 // connections, so full offline support is not a goal for this version.
 
-const CACHE_NAME = 'speakscroll-v1';
+const CACHE_NAME = 'captionscroll-v1';
 const STATIC_ASSETS = [
   '/',
   '/favicon.png',

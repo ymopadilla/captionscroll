@@ -1,5 +1,5 @@
 /**
- * SpeakScroll smoke tests (headless Chromium, fake camera/mic).
+ * CaptionScroll smoke tests (headless Chromium, fake camera/mic).
  *
  * Runs against `vite preview` serving the production build. Supabase
  * network calls are intercepted so tiers can be simulated without a

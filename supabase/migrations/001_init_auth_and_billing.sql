@@ -1,6 +1,6 @@
 -- ============================================================
--- SpeakScroll — initial schema: users, scripts, subscriptions
--- Run this in the Supabase SQL Editor of the SpeakScroll project
+-- CaptionScroll — initial schema: users, scripts, subscriptions
+-- Run this in the Supabase SQL Editor of the CaptionScroll project
 -- (https://rgpgascbdmbpkgsmgnmx.supabase.co). Safe to run once.
 -- ============================================================
 

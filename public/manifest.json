@@ -1,6 +1,6 @@
 {
-  "name": "SpeakScroll",
-  "short_name": "SpeakScroll",
+  "name": "CaptionScroll",
+  "short_name": "CaptionScroll",
   "description": "Professional teleprompter with script-based video caption embedding for educators, trainers, and speakers.",
   "start_url": "/",
   "display": "standalone",

@@ -56,7 +56,7 @@ function Check({ on }) {
 
 export default function PricingPage() {
   usePageMeta(
-    'SpeakScroll Pricing — Free, Starter & Pro Plans',
+    'CaptionScroll Pricing — Free, Starter & Pro Plans',
     'Start free. Upgrade to Starter ($7.99/mo) for unlimited recording, or Pro ($14.99/mo) for speech-sync captions, green screen & more. 14-day free trial.'
   );
 

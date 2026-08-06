@@ -786,7 +786,7 @@ export default function TeleprompterScroll() {
   const handleDownload = useCallback(() => {
     if (!selectedTake) return;
     const ext = selectedTake.mime.includes('mp4') ? 'mp4' : 'webm';
-    downloadBlob(selectedTake.blob, `speakscroll-recording.${ext}`);
+    downloadBlob(selectedTake.blob, `captionscroll-recording.${ext}`);
   }, [selectedTake]);
 
   const handleSocialExport = useCallback(
@@ -797,14 +797,14 @@ export default function TeleprompterScroll() {
       if (preset.aspect === '16:9') {
         // Native aspect — download directly with a platform-ready name.
         const ext = selectedTake.mime.includes('mp4') ? 'mp4' : 'webm';
-        downloadBlob(selectedTake.blob, `speakscroll-${key}.${ext}`);
+        downloadBlob(selectedTake.blob, `captionscroll-${key}.${ext}`);
         return;
       }
       // Vertical platforms: re-encode with a 9:16 center crop.
       setExporting(preset.label);
       try {
         const { blob, ext } = await reencodeTake(selectedTake.blob, preset);
-        downloadBlob(blob, `speakscroll-${key}.${ext}`);
+        downloadBlob(blob, `captionscroll-${key}.${ext}`);
       } catch (err) {
         setExportError(err.message || 'Export failed.');
         setTimeout(() => setExportError(''), 6000);
@@ -819,7 +819,7 @@ export default function TeleprompterScroll() {
     if (!scriptText.trim()) return;
     downloadBlob(
       new Blob([scriptText], { type: 'text/plain' }),
-      'speakscroll-transcript.txt'
+      'captionscroll-transcript.txt'
     );
   }, [scriptText]);
 
@@ -982,7 +982,7 @@ export default function TeleprompterScroll() {
     <div className="teleprompter-container">
       {/* Header */}
       <header className="header app-header">
-        <img src="/hero-banner.png" alt="SpeakScroll Hero" className="hero-banner" />
+        <img src="/hero-banner.png" alt="CaptionScroll Hero" className="hero-banner" />
         <div className="app-header-right">
           <span className={`tier-badge tier-${tier}`}>{TIER_LABELS[tier]}</span>
           {tier !== 'pro' && (

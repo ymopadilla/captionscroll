@@ -33,12 +33,12 @@ const FEATURES = [
 
 const FAQS = [
   {
-    q: 'What makes SpeakScroll different from other teleprompter apps?',
-    a: 'SpeakScroll embeds your actual script as video captions — not AI-generated captions. Since you wrote the script, the captions are 100% accurate, with zero transcription errors.',
+    q: 'What makes CaptionScroll different from other teleprompter apps?',
+    a: 'CaptionScroll embeds your actual script as video captions — not AI-generated captions. Since you wrote the script, the captions are 100% accurate, with zero transcription errors.',
   },
   {
     q: 'Do I need to install anything?',
-    a: 'No. SpeakScroll works entirely in your web browser — no app download required.',
+    a: 'No. CaptionScroll works entirely in your web browser — no app download required.',
   },
   {
     q: "What's included in the free plan?",
@@ -49,8 +49,8 @@ const FAQS = [
     a: 'When you subscribe to Starter or Pro, you get 14 days of full access before any charge. Cancel anytime during the trial with no cost.',
   },
   {
-    q: 'Can I use SpeakScroll for YouTube or TikTok videos?',
-    a: 'Yes. SpeakScroll works for any platform — YouTube, TikTok, Instagram, LinkedIn, or internal training videos.',
+    q: 'Can I use CaptionScroll for YouTube or TikTok videos?',
+    a: 'Yes. CaptionScroll works for any platform — YouTube, TikTok, Instagram, LinkedIn, or internal training videos.',
   },
   {
     q: "What's the difference between Starter and Pro?",
@@ -69,8 +69,8 @@ const FAQS = [
 
 export default function LandingPage() {
   usePageMeta(
-    'SpeakScroll — Teleprompter with Perfect Video Captions',
-    'Professional teleprompter for educators, trainers & speakers. Record video with 100% accurate captions embedded — no AI transcription errors, ever.'
+    'CaptionScroll — Your script. Perfect captions.',
+    'CaptionScroll is a professional teleprompter for educators, trainers & speakers. Record video with 100% accurate captions embedded — no AI transcription errors, ever.'
   );
 
   return (
@@ -81,10 +81,10 @@ export default function LandingPage() {
       <header className="hero">
         <img
           src="/hero-banner.png"
-          alt="SpeakScroll teleprompter app logo with tagline Speak Clearly Flow Naturally"
+          alt="CaptionScroll teleprompter app hero banner"
           className="hero-image"
         />
-        <h1 className="hero-headline">Speak Clearly. Flow Naturally.</h1>
+        <h1 className="hero-headline">Your Script. Perfect Captions.</h1>
         <p className="hero-subheadline">Plan. Deliver. Perfect.</p>
         <p className="hero-tagline">
           Professional teleprompter for educators, trainers, and speakers
@@ -120,7 +120,7 @@ export default function LandingPage() {
         </div>
         <p className="compare-link">
           Wondering how we stack up?{' '}
-          <Link to="/compare">See how SpeakScroll compares →</Link>
+          <Link to="/compare">See how CaptionScroll compares →</Link>
         </p>
       </section>
 

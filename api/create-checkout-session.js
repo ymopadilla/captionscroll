@@ -5,7 +5,7 @@ import Stripe from 'stripe';
  * Body: { productId, userId, email, origin }
  *
  * Creates a Stripe Checkout session (subscription mode, 14-day trial)
- * for one of the four known SpeakScroll products. Price ids are
+ * for one of the four known CaptionScroll products. Price ids are
  * resolved at runtime from the product, so nothing is hardcoded.
  *
  * Requires env var STRIPE_SECRET_KEY (set in Vercel).
