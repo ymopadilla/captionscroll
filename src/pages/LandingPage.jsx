@@ -91,16 +91,15 @@ export default function LandingPage() {
               alt="CaptionScroll logo"
               className="hero-logo"
             />
-            <div className="hero-brand-text">
+            <h1 className="hero-brand-text">
               <span className="hero-brand">CaptionScroll</span>
               <span className="hero-brand-tagline">
                 Your script. Perfect captions.
               </span>
-            </div>
+            </h1>
           </div>
         </div>
         <div className="hero-content">
-          <h1 className="hero-headline">Your Script. Perfect Captions.</h1>
           <p className="hero-subheadline">Plan. Deliver. Perfect.</p>
           <p className="hero-tagline">
             Professional teleprompter for educators, trainers, and speakers
