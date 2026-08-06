@@ -87,8 +87,8 @@ export default function LandingPage() {
           />
           <div className="hero-banner-overlay">
             <img
-              src="/captionscroll-icon.png"
-              alt="CaptionScroll logo"
+              src="/captionscroll-mark.png"
+              alt="CaptionScroll flowing ribbon logo mark"
               className="hero-logo"
             />
             <h1 className="hero-brand-text">

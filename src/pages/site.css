@@ -132,11 +132,9 @@
 }
 
 .hero-logo {
-  width: clamp(44px, 6.5vw, 94px);
-  height: clamp(44px, 6.5vw, 94px);
-  object-fit: cover;
-  border-radius: clamp(10px, 1.6vw, 18px);
-  box-shadow: 0 4px 18px rgba(0, 10, 60, 0.45);
+  height: clamp(48px, 7vw, 100px);
+  width: auto;
+  filter: drop-shadow(0 4px 12px rgba(0, 10, 60, 0.4));
 }
 
 .hero-brand-text {
