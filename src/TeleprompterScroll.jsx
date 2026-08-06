@@ -162,7 +162,23 @@ const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
 export default function TeleprompterScroll() {
   /* ---------- account + subscription ---------- */
   const { user, signOut } = useAuth();
-  const { tier, refresh: refreshTier } = useSubscription();
+  const { tier, loading: tierLoading, refresh: refreshTier } = useSubscription();
+  // True from first paint when we arrive on a Stripe checkout redirect,
+  // until the subscription is verified + refetched. Seeded synchronously
+  // from the URL so the UI never flashes a stale FREE state in between.
+  const [confirmingCheckout, setConfirmingCheckout] = useState(() => {
+    const q = new URLSearchParams(window.location.search);
+    // Must match the `fromCheckout` predicate in the effect below, which
+    // is what clears this flag again.
+    return (
+      q.has('session_id') ||
+      q.get('checkout') === 'success' ||
+      q.has('checkout_success')
+    );
+  });
+  // While this is true the tier is unknown — gate features + show a
+  // "checking your plan" indicator instead of tier-dependent UI.
+  const tierBusy = tierLoading || confirmingCheckout;
   const canRecord = tier === 'starter' || tier === 'pro';
   const isPro = tier === 'pro';
   const isProRef = useRef(isPro);
@@ -274,10 +290,16 @@ export default function TeleprompterScroll() {
     const sessionId = searchParams.get('session_id');
     const plan = searchParams.get('plan');
     const cycle = searchParams.get('cycle');
+    // Any of these params means we just came back from Stripe Checkout.
+    const fromCheckout =
+      Boolean(sessionId) ||
+      searchParams.get('checkout') === 'success' ||
+      searchParams.has('checkout_success');
 
-    if (searchParams.get('checkout') === 'success' && sessionId) {
+    if (fromCheckout && sessionId) {
       // Back from Stripe — verify server-side, then refresh the tier.
       checkoutHandledRef.current = true;
+      setConfirmingCheckout(true);
       setBanner('Confirming your subscription…');
       fetch('/api/verify-session', {
         method: 'POST',
@@ -286,21 +308,45 @@ export default function TeleprompterScroll() {
       })
         .then(async (res) => {
           const data = await res.json().catch(() => ({}));
+          // ALWAYS refetch, even when verification fails — a Stripe
+          // webhook may have updated the tier in Supabase regardless,
+          // and the pre-checkout client state is stale either way.
+          const next = await refreshTier();
           if (res.ok && data.tier) {
-            await refreshTier();
             setBanner(
               `🎉 You're on the ${TIER_LABELS[data.tier]} plan${
                 data.status === 'trialing' ? ' — 14-day free trial started' : ''
               }!`
             );
+          } else if (next !== 'free') {
+            setBanner(`🎉 You're on the ${TIER_LABELS[next]} plan!`);
           } else {
             setBanner(data.error || 'Could not confirm the payment.');
           }
         })
-        .catch(() => setBanner('Could not confirm the payment.'))
+        .catch(async () => {
+          const next = await refreshTier().catch(() => 'free');
+          setBanner(
+            next !== 'free'
+              ? `🎉 You're on the ${TIER_LABELS[next]} plan!`
+              : 'Could not confirm the payment.'
+          );
+        })
         .finally(() => {
+          setConfirmingCheckout(false);
           setSearchParams({}, { replace: true });
           setTimeout(() => setBanner(''), 8000);
+        });
+    } else if (fromCheckout) {
+      // Redirect from Stripe without a session id (e.g. cancelled, or a
+      // trimmed success URL) — clear the flag and refetch so the UI
+      // reflects whatever tier Supabase has now.
+      checkoutHandledRef.current = true;
+      refreshTier()
+        .catch(() => {})
+        .finally(() => {
+          setConfirmingCheckout(false);
+          setSearchParams({}, { replace: true });
         });
     } else if (plan && cycle && user) {
       // Fresh signup that started from a pricing button — go straight
@@ -984,8 +1030,18 @@ export default function TeleprompterScroll() {
       <header className="header app-header">
         <img src="/captionscroll-wordmark.jpg" alt="CaptionScroll logo" className="hero-banner" />
         <div className="app-header-right">
-          <span className={`tier-badge tier-${tier}`}>{TIER_LABELS[tier]}</span>
-          {tier !== 'pro' && (
+          {tierBusy ? (
+            <span
+              className="tier-badge tier-loading"
+              role="status"
+              aria-label="Checking your plan"
+            >
+              <span className="tier-spinner" aria-hidden="true" />
+            </span>
+          ) : (
+            <span className={`tier-badge tier-${tier}`}>{TIER_LABELS[tier]}</span>
+          )}
+          {!tierBusy && tier !== 'pro' && (
             <Link to="/pricing" className="upgrade-link">
               ⬆ Upgrade
             </Link>
@@ -1061,7 +1117,7 @@ export default function TeleprompterScroll() {
               type="radio"
               name="embed-captions"
               checked={showCaptions}
-              disabled={isRecording || !canRecord}
+              disabled={isRecording || tierBusy || !canRecord}
               onChange={() => setShowCaptions(true)}
             />
             Yes
@@ -1071,7 +1127,7 @@ export default function TeleprompterScroll() {
               type="radio"
               name="embed-captions"
               checked={!showCaptions}
-              disabled={isRecording || !canRecord}
+              disabled={isRecording || tierBusy || !canRecord}
               onChange={() => setShowCaptions(false)}
             />
             No
@@ -1311,16 +1367,27 @@ export default function TeleprompterScroll() {
           className="record-btn start"
           onClick={startRecording}
           disabled={
-            !canRecord || !recorderSupported || !cameraReady || isRecording
+            tierBusy ||
+            !canRecord ||
+            !recorderSupported ||
+            !cameraReady ||
+            isRecording
           }
         >
           ⏺ Start Recording
         </button>
 
-        {!canRecord && (
-          <Link to="/pricing" className="record-locked">
-            🔒 Upgrade to Starter to start recording
-          </Link>
+        {tierBusy ? (
+          <span className="tier-checking" role="status">
+            <span className="tier-spinner" aria-hidden="true" />
+            Checking your plan…
+          </span>
+        ) : (
+          !canRecord && (
+            <Link to="/pricing" className="record-locked">
+              🔒 Upgrade to Starter to start recording
+            </Link>
+          )
         )}
 
         <button
