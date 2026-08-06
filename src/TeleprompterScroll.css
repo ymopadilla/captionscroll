@@ -16,6 +16,7 @@
   object-fit: contain;
   object-position: left center;
   display: block;
+  border-radius: 8px;
 }
 
 /* Header Styling */

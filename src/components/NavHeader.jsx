@@ -14,7 +14,7 @@ export default function NavHeader() {
   return (
     <nav className="site-nav">
       <Link to="/" className="site-nav-logo">
-        <img src="/speakscroll-logo.png" alt="CaptionScroll S logo" />
+        <img src="/captionscroll-icon.png" alt="CaptionScroll flag logo" />
         <span>CaptionScroll</span>
       </Link>
       <div className="site-nav-links">

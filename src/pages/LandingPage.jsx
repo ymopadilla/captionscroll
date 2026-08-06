@@ -80,18 +80,20 @@ export default function LandingPage() {
       {/* Hero */}
       <header className="hero">
         <img
-          src="/hero-banner.png"
-          alt="CaptionScroll teleprompter app hero banner"
+          src="/hero-banner.jpg"
+          alt="Flowing light streams over a blue and purple gradient"
           className="hero-image"
         />
-        <h1 className="hero-headline">Your Script. Perfect Captions.</h1>
-        <p className="hero-subheadline">Plan. Deliver. Perfect.</p>
-        <p className="hero-tagline">
-          Professional teleprompter for educators, trainers, and speakers
-        </p>
-        <Link to="/signup" className="hero-cta">
-          Get Started Free
-        </Link>
+        <div className="hero-content">
+          <h1 className="hero-headline">Your Script. Perfect Captions.</h1>
+          <p className="hero-subheadline">Plan. Deliver. Perfect.</p>
+          <p className="hero-tagline">
+            Professional teleprompter for educators, trainers, and speakers
+          </p>
+          <Link to="/signup" className="hero-cta">
+            Get Started Free
+          </Link>
+        </div>
       </header>
 
       {/* Features */}

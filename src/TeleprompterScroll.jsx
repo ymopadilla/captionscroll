@@ -982,7 +982,7 @@ export default function TeleprompterScroll() {
     <div className="teleprompter-container">
       {/* Header */}
       <header className="header app-header">
-        <img src="/hero-banner.png" alt="CaptionScroll Hero" className="hero-banner" />
+        <img src="/captionscroll-wordmark.jpg" alt="CaptionScroll logo" className="hero-banner" />
         <div className="app-header-right">
           <span className={`tier-badge tier-${tier}`}>{TIER_LABELS[tier]}</span>
           {tier !== 'pro' && (
