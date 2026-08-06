@@ -91,7 +91,12 @@ export default function LandingPage() {
               alt="CaptionScroll logo"
               className="hero-logo"
             />
-            <span className="hero-brand">CaptionScroll</span>
+            <div className="hero-brand-text">
+              <span className="hero-brand">CaptionScroll</span>
+              <span className="hero-brand-tagline">
+                Your script. Perfect captions.
+              </span>
+            </div>
           </div>
         </div>
         <div className="hero-content">
