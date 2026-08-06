@@ -79,11 +79,21 @@ export default function LandingPage() {
 
       {/* Hero */}
       <header className="hero">
-        <img
-          src="/hero-banner.jpg"
-          alt="Flowing light streams over a blue and purple gradient"
-          className="hero-image"
-        />
+        <div className="hero-banner-wrap">
+          <img
+            src="/hero-banner.jpg"
+            alt="Flowing light streams over a blue and purple gradient"
+            className="hero-image"
+          />
+          <div className="hero-banner-overlay">
+            <img
+              src="/captionscroll-icon.png"
+              alt="CaptionScroll logo"
+              className="hero-logo"
+            />
+            <span className="hero-brand">CaptionScroll</span>
+          </div>
+        </div>
         <div className="hero-content">
           <h1 className="hero-headline">Your Script. Perfect Captions.</h1>
           <p className="hero-subheadline">Plan. Deliver. Perfect.</p>

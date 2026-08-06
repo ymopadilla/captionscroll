@@ -106,12 +106,48 @@
   padding: 0 0 56px;
 }
 
+.hero-banner-wrap {
+  position: relative;
+}
+
 .hero-image {
   display: block;
   width: 100%;
   height: clamp(150px, 21vw, 300px);
   object-fit: cover;
   object-position: center;
+}
+
+.hero-banner-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(8px, 1.4vw, 14px);
+  padding: 12px;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.hero-logo {
+  width: clamp(48px, 7.5vw, 92px);
+  height: clamp(48px, 7.5vw, 92px);
+  object-fit: cover;
+  border-radius: clamp(10px, 1.6vw, 18px);
+  box-shadow: 0 4px 18px rgba(0, 10, 60, 0.45);
+}
+
+.hero-brand {
+  font-size: clamp(24px, 3.6vw, 44px);
+  line-height: 1.1;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: #ffffff;
+  text-shadow:
+    0 2px 14px rgba(10, 15, 70, 0.6),
+    0 1px 3px rgba(0, 0, 0, 0.35);
 }
 
 .hero-content {
