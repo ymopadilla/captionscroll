@@ -37,6 +37,7 @@ const GS_COLORS = [
   { label: 'White', value: '#ffffff' },
   { label: 'Blue', value: '#1e5aa8' },
   { label: 'Green', value: '#0b8a43' },
+  { label: 'Red', value: '#c62828' },
   { label: 'Black', value: '#000000' },
   { label: 'Gray', value: '#6c757d' },
 ];
@@ -345,6 +346,10 @@ export default function TeleprompterScroll() {
   const [gsStatus, setGsStatus] = useState(''); // '' | 'loading' | 'ready' | 'error'
   const [gsImageName, setGsImageName] = useState('');
   const gsRef = useRef(null); // GreenScreenProcessor
+  // Visible preview canvases that mirror the compositor's output live,
+  // so the user sees the chosen background BEFORE hitting Record.
+  const pipFxRef = useRef(null); // overlay inside the camera PIP
+  const deskFxRef = useRef(null); // overlay inside the desktop camera pane
 
   /* ---------- video filters (Pro) ---------- */
   const [brightness, setBrightness] = useState(100);
@@ -637,6 +642,49 @@ export default function TeleprompterScroll() {
       if (gsRef.current) gsRef.current.stop();
     };
   }, []);
+
+  /* ============================================================
+   * Live effect preview
+   *
+   * The segmentation compositor above runs the moment an effect is
+   * selected — not just while recording. This loop paints its output
+   * onto the visible preview canvases (PIP + desktop pane) each frame,
+   * so the user sees exactly what the recording will look like and can
+   * toggle between effects in real time. The recording pipeline reads
+   * the very same gs.canvas, so preview and recording always match.
+   * ============================================================ */
+  const gsPreviewOn = gsMode !== 'off' && gsStatus === 'ready';
+  useEffect(() => {
+    if (!gsPreviewOn) return undefined;
+
+    let raf;
+    const paint = () => {
+      const gs = gsRef.current;
+      if (gs && gs.running && gs.hasFrame) {
+        for (const ref of [pipFxRef, deskFxRef]) {
+          const el = ref.current;
+          if (!el) continue;
+          if (el.width !== gs.canvas.width || el.height !== gs.canvas.height) {
+            el.width = gs.canvas.width;
+            el.height = gs.canvas.height;
+          }
+          el.getContext('2d').drawImage(gs.canvas, 0, 0);
+        }
+      }
+      raf = requestAnimationFrame(paint);
+    };
+    raf = requestAnimationFrame(paint);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      // Clear both canvases so a stale frame never flashes the next
+      // time an effect is switched on.
+      for (const ref of [pipFxRef, deskFxRef]) {
+        const el = ref.current;
+        if (el) el.getContext('2d').clearRect(0, 0, el.width, el.height);
+      }
+    };
+  }, [gsPreviewOn]);
 
   const handleGsImageUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -1165,7 +1213,10 @@ export default function TeleprompterScroll() {
   /* ============================================================
    * Render
    * ============================================================ */
-  const effectsActive = gsMode !== 'off' || filtersActive || showCaptions;
+  // Effects the preview can NOT show live (they composite only into the
+  // recording): captions + Pro filters. Green-screen backgrounds preview
+  // live now, so they no longer trigger the "recording only" note.
+  const recordOnlyEffects = filtersActive || showCaptions;
 
   // First-visit trial picker: only for definitively trial-eligible users
   // (free tier, no trial record) who aren't mid-checkout and didn't say
@@ -1636,6 +1687,13 @@ export default function TeleprompterScroll() {
             playsInline
             muted /* mute preview to avoid feedback; mic still records */
           />
+          {/* Live effect preview overlay — shows the compositor's output
+              (blur / solid color / custom image) over the raw video */}
+          <canvas
+            ref={pipFxRef}
+            className={`camera-fx ${gsPreviewOn ? 'fx-on' : ''}`}
+            aria-hidden="true"
+          />
           {cameraError && (
             <div className="camera-error">
               <p>{cameraError}</p>
@@ -1648,8 +1706,8 @@ export default function TeleprompterScroll() {
               </button>
             </div>
           )}
-          {!cameraError && effectsActive && (
-            <span className="pip-note">effects apply to recording</span>
+          {!cameraError && recordOnlyEffects && (
+            <span className="pip-note">captions &amp; filters apply to recording</span>
           )}
           <span
             className="pip-resize-handle"
@@ -1682,6 +1740,14 @@ export default function TeleprompterScroll() {
                 muted /* mute preview to avoid feedback; mic still records */
                 style={{ visibility: showPreview ? 'visible' : 'hidden' }}
               />
+              {/* Live effect preview overlay (same compositor output as
+                  the PIP overlay — and as the recording itself) */}
+              <canvas
+                ref={deskFxRef}
+                className={`camera-fx ${gsPreviewOn ? 'fx-on' : ''}`}
+                style={{ visibility: showPreview ? 'visible' : 'hidden' }}
+                aria-hidden="true"
+              />
               {!showPreview && !cameraError && (
                 <div className="camera-off-note">
                   Camera preview hidden — recording still uses the camera
@@ -1698,8 +1764,8 @@ export default function TeleprompterScroll() {
                   </button>
                 </div>
               )}
-              {!cameraError && showPreview && effectsActive && (
-                <span className="pip-note">effects apply to recording</span>
+              {!cameraError && showPreview && recordOnlyEffects && (
+                <span className="pip-note">captions &amp; filters apply to recording</span>
               )}
             </div>
             {recordingControls}

@@ -467,6 +467,28 @@
   pointer-events: none; /* drags land on the PIP container */
 }
 
+/* Live effect preview overlay: sits on top of the raw <video> and shows
+   the green-screen compositor's output (blur / solid color / custom
+   image) in real time, BEFORE recording starts. Hidden entirely while
+   no effect is active so the raw camera shows through. */
+.camera-fx {
+  display: none;
+}
+
+.camera-fx.fx-on {
+  display: block;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Mirror the PREVIEW only (selfie view), matching the raw video
+     underneath. The recording reads the compositor canvas directly,
+     so the saved video is not mirrored. */
+  transform: scaleX(-1);
+  pointer-events: none; /* PIP drags land on the container */
+}
+
 .pip-note {
   position: absolute;
   bottom: 4px;
