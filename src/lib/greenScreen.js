@@ -3,10 +3,19 @@
  *
  * Uses MediaPipe Selfie Segmentation (loaded lazily from CDN) to
  * separate the speaker from the background, then composites onto an
- * offscreen canvas:
- *   - 'blur'  — original background, blurred
- *   - 'color' — solid color background
- *   - 'image' — custom uploaded background (Pro)
+ * offscreen canvas. Background modes:
+ *   - 'blur'       — original background, blurred (intensity = radius)
+ *   - 'color'      — solid color background
+ *   - 'image'      — custom uploaded background (Pro)
+ *   - 'office'     — preset photo: professional shelves/desk
+ *   - 'bokeh'      — preset photo: warm defocused lights
+ *   - 'nature'     — preset photo: soft greenery
+ *   - 'sunset'     — canvas-drawn warm gradient (orange→pink→purple)
+ *   - 'minimalist' — canvas-drawn light gradient (white→gray)
+ *
+ * Every preset has a 0–1 `intensity` knob that maps onto a mode-specific
+ * range (blur radius, brightness, saturation, glow, gradient depth) —
+ * see INTENSITY_RANGES below, shared with the gallery UI.
  *
  * The recording pipeline reads processor.canvas each frame, exactly the
  * way it already reads the raw <video> element, so captions composite
@@ -14,6 +23,60 @@
  */
 
 const CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation';
+
+// Preset photos served from public/backgrounds/ (canvas-drawn presets
+// need no image).
+const PRESET_IMAGE_MODES = ['office', 'bokeh', 'nature'];
+
+/**
+ * How the 0–1 intensity slider maps per mode. `label` formats the live
+ * readout shown under the gallery slider.
+ */
+export const INTENSITY_RANGES = {
+  blur: {
+    name: 'Blur',
+    default: 0.35, // → 12px, the classic radius
+    map: (i) => 5 + 20 * i, // 5–25px
+    label: (i) => `Blur: ${Math.round(5 + 20 * i)}px`,
+  },
+  office: {
+    name: 'Brightness',
+    default: 0.5,
+    map: (i) => 0.5 + i, // 0.5–1.5
+    label: (i) => `Brightness: ${(0.5 + i).toFixed(2)}x`,
+  },
+  bokeh: {
+    name: 'Glow',
+    default: 0.57, // → ~0.7 glow
+    map: (i) => 0.3 + 0.7 * i, // 0.3–1.0
+    label: (i) => `Glow: ${(0.3 + 0.7 * i).toFixed(2)}`,
+  },
+  sunset: {
+    name: 'Saturation',
+    default: 0.5,
+    map: (i) => 0.5 + i, // 0.5–1.5
+    label: (i) => `Saturation: ${(0.5 + i).toFixed(2)}x`,
+  },
+  nature: {
+    name: 'Saturation',
+    default: 0.5,
+    map: (i) => 0.5 + i, // 0.5–1.5
+    label: (i) => `Saturation: ${(0.5 + i).toFixed(2)}x`,
+  },
+  minimalist: {
+    name: 'Depth',
+    default: 0.5,
+    map: (i) => 0.1 + 0.9 * i, // 0.1–1.0
+    label: (i) => `Depth: ${(0.1 + 0.9 * i).toFixed(2)}`,
+  },
+};
+
+export const DEFAULT_INTENSITY = 0.5;
+
+/** Default slider position for a mode (0–1). */
+export function intensityDefault(mode) {
+  return INTENSITY_RANGES[mode]?.default ?? DEFAULT_INTENSITY;
+}
 
 let loadPromise = null;
 
@@ -50,9 +113,11 @@ export class GreenScreenProcessor {
     this.canvas.height = height;
     this.ctx = this.canvas.getContext('2d');
 
-    this.mode = 'off'; // 'off' | 'blur' | 'color' | 'image'
+    this.mode = 'off';
     this.color = '#ffffff';
+    this.intensity = DEFAULT_INTENSITY; // 0–1, mode-specific meaning
     this.bgImage = null; // HTMLImageElement for 'image' mode
+    this.presetImages = {}; // mode -> HTMLImageElement (office/bokeh/nature)
     this.smoothEdges = false; // Pro: softer mask edges
 
     this.running = false;
@@ -60,6 +125,7 @@ export class GreenScreenProcessor {
     this._busy = false;
     this._raf = null;
     this._seg = null;
+    this._presetLoads = {}; // mode -> in-flight Promise
   }
 
   setMode(mode) {
@@ -68,6 +134,12 @@ export class GreenScreenProcessor {
 
   setColor(color) {
     this.color = color;
+  }
+
+  /** 0–1 slider value; each mode maps it onto its own range. */
+  setIntensity(value) {
+    const n = Number(value);
+    this.intensity = Number.isFinite(n) ? Math.min(Math.max(n, 0), 1) : DEFAULT_INTENSITY;
   }
 
   /** dataUrl -> background image for 'image' mode. */
@@ -85,6 +157,31 @@ export class GreenScreenProcessor {
       img.onerror = () => reject(new Error('Could not read that image.'));
       img.src = dataUrl;
     });
+  }
+
+  /**
+   * Make sure the given mode's preset photo (if any) is loaded. Resolves
+   * immediately for canvas-drawn presets. A missing/broken photo resolves
+   * anyway — _compose falls back to a solid tone, never a black frame.
+   */
+  preparePreset(mode) {
+    if (!PRESET_IMAGE_MODES.includes(mode) || this.presetImages[mode]) {
+      return Promise.resolve();
+    }
+    if (!this._presetLoads[mode]) {
+      this._presetLoads[mode] = new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          this.presetImages[mode] = img;
+          resolve();
+        };
+        img.onerror = () => resolve(); // fall back to the solid tone
+        img.src = `/backgrounds/${mode}.jpg`;
+      }).finally(() => {
+        delete this._presetLoads[mode];
+      });
+    }
+    return this._presetLoads[mode];
   }
 
   /** Start segmenting frames from the given <video> element. */
@@ -116,6 +213,112 @@ export class GreenScreenProcessor {
     pump();
   }
 
+  /** Cover-fit draw an image onto the full canvas. */
+  _drawCover(img) {
+    const { ctx } = this;
+    const { width, height } = this.canvas;
+    const scale = Math.max(width / img.width, height / img.height);
+    const dw = img.width * scale;
+    const dh = img.height * scale;
+    ctx.drawImage(img, (width - dw) / 2, (height - dh) / 2, dw, dh);
+  }
+
+  /** Fill the canvas with a vertical gradient from the given stops. */
+  _drawGradient(stops) {
+    const { ctx } = this;
+    const { width, height } = this.canvas;
+    const grad = ctx.createLinearGradient(0, 0, 0, height);
+    for (const [at, color] of stops) grad.addColorStop(at, color);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, width, height);
+  }
+
+  /** Paint the chosen background (called with 'destination-over' active). */
+  _drawBackground(results) {
+    const { ctx } = this;
+    const { width, height } = this.canvas;
+    const i = this.intensity;
+
+    switch (this.mode) {
+      case 'blur': {
+        ctx.filter = `blur(${(5 + 20 * i).toFixed(1)}px)`; // 5–25px
+        ctx.drawImage(results.image, 0, 0, width, height);
+        ctx.filter = 'none';
+        break;
+      }
+      case 'office': {
+        const img = this.presetImages.office;
+        if (img) {
+          ctx.filter = `brightness(${(0.5 + i).toFixed(3)})`; // 0.5–1.5
+          this._drawCover(img);
+          ctx.filter = 'none';
+        } else {
+          this._drawGradient([[0, '#8a7256'], [1, '#4a3b2a']]);
+        }
+        break;
+      }
+      case 'bokeh': {
+        const img = this.presetImages.bokeh;
+        if (img) {
+          // Glow 0.3–1.0 → brightness lift on the warm lights.
+          const glow = 0.3 + 0.7 * i;
+          ctx.filter = `brightness(${(0.45 + glow).toFixed(3)}) saturate(1.15)`;
+          this._drawCover(img);
+          ctx.filter = 'none';
+        } else {
+          this._drawGradient([[0, '#3a2320'], [1, '#120a08']]);
+        }
+        break;
+      }
+      case 'nature': {
+        const img = this.presetImages.nature;
+        if (img) {
+          ctx.filter = `saturate(${(0.5 + i).toFixed(3)})`; // 0.5–1.5
+          this._drawCover(img);
+          ctx.filter = 'none';
+        } else {
+          this._drawGradient([[0, '#5c8a4f'], [1, '#2e4d28']]);
+        }
+        break;
+      }
+      case 'sunset': {
+        // Warm gradient; the slider drives saturation 0.5–1.5.
+        ctx.filter = `saturate(${(0.5 + i).toFixed(3)})`;
+        this._drawGradient([
+          [0, '#ff9046'],
+          [0.5, '#ff5e8a'],
+          [1, '#7a3fd8'],
+        ]);
+        ctx.filter = 'none';
+        break;
+      }
+      case 'minimalist': {
+        // White → gray; the slider drives how deep the gray goes.
+        const depth = 0.1 + 0.9 * i; // 0.1–1.0
+        const g = Math.round(255 - 96 * depth);
+        this._drawGradient([
+          [0, '#ffffff'],
+          [1, `rgb(${g}, ${g}, ${Math.min(255, g + 4)})`],
+        ]);
+        break;
+      }
+      case 'image': {
+        if (this.bgImage) {
+          this._drawCover(this.bgImage);
+        } else {
+          ctx.fillStyle = '#000000';
+          ctx.fillRect(0, 0, width, height);
+        }
+        break;
+      }
+      default: {
+        // 'color'
+        ctx.fillStyle = this.mode === 'color' ? this.color : '#000000';
+        ctx.fillRect(0, 0, width, height);
+      }
+    }
+  }
+
   /** Composite person cutout over the chosen background. */
   _compose(results) {
     const { ctx } = this;
@@ -135,22 +338,7 @@ export class GreenScreenProcessor {
 
     // 3. Paint the background behind the person.
     ctx.globalCompositeOperation = 'destination-over';
-    if (this.mode === 'blur') {
-      ctx.filter = 'blur(16px)';
-      ctx.drawImage(results.image, 0, 0, width, height);
-      ctx.filter = 'none';
-    } else if (this.mode === 'image' && this.bgImage) {
-      // Cover-fit the uploaded background.
-      const img = this.bgImage;
-      const scale = Math.max(width / img.width, height / img.height);
-      const dw = img.width * scale;
-      const dh = img.height * scale;
-      ctx.drawImage(img, (width - dw) / 2, (height - dh) / 2, dw, dh);
-    } else {
-      // 'color' — and the fallback for 'image' with no upload yet.
-      ctx.fillStyle = this.mode === 'color' ? this.color : '#000000';
-      ctx.fillRect(0, 0, width, height);
-    }
+    this._drawBackground(results);
 
     ctx.restore();
     this.hasFrame = true;

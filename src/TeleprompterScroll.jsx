@@ -7,7 +7,15 @@ import SubscriptionGate from './components/SubscriptionGate';
 import TrialPicker from './components/TrialPicker';
 import { supabase } from './lib/supabaseClient';
 import { TIER_LABELS, endedAgoText } from './lib/tiers';
-import { GreenScreenProcessor } from './lib/greenScreen';
+import { GreenScreenProcessor, intensityDefault } from './lib/greenScreen';
+import BackgroundGallery from './components/BackgroundGallery';
+import TextOverlayDialog from './components/TextOverlayDialog';
+import {
+  createOverlay,
+  clampOverlayPosition,
+  coverTransform,
+  drawTextOverlays,
+} from './lib/textOverlayUtils';
 import { SOCIAL_PRESETS, downloadBlob, reencodeTake } from './lib/socialExport';
 import './TeleprompterScroll.css';
 
@@ -194,6 +202,99 @@ function matchSpokenSegment(recentWords, segments, currentIndex) {
 
 const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
 
+/**
+ * Draggable text/emoji layers over a camera preview box.
+ *
+ * Overlays live in recording coordinates (1280x720); this component
+ * measures the preview box it sits in and maps them through the same
+ * cover-fit transform the compositor uses, so what the user drags is
+ * exactly where the text lands in the saved video. A press that never
+ * moves (>4px) is a tap → opens the editor for that layer.
+ */
+function TextOverlayLayer({ overlays, onMove, onEdit }) {
+  const boxRef = useRef(null);
+  const [box, setBox] = useState({ w: 0, h: 0 });
+  const gestureRef = useRef(null);
+
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el) return undefined;
+    const measure = () =>
+      setBox({ w: el.clientWidth, h: el.clientHeight });
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const { scale, ox, oy } = coverTransform(box.w, box.h);
+
+  const beginDrag = (e, overlay) => {
+    // Don't start a PIP drag underneath.
+    e.stopPropagation();
+    e.preventDefault();
+    gestureRef.current = {
+      id: overlay.id,
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      origX: overlay.x,
+      origY: overlay.y,
+      moved: false,
+    };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const moveDrag = (e) => {
+    const g = gestureRef.current;
+    if (!g || scale === 0) return;
+    const dx = (e.clientX - g.startX) / scale;
+    const dy = (e.clientY - g.startY) / scale;
+    if (!g.moved && Math.hypot(e.clientX - g.startX, e.clientY - g.startY) > 4) {
+      g.moved = true;
+    }
+    if (g.moved) {
+      const next = clampOverlayPosition(g.origX + dx, g.origY + dy);
+      onMove(g.id, next.x, next.y);
+    }
+  };
+
+  const endDrag = () => {
+    const g = gestureRef.current;
+    gestureRef.current = null;
+    if (g && !g.moved) onEdit(g.id); // tap → edit
+  };
+
+  // The host stays mounted even with zero layers (pointer-events: none,
+  // so it never blocks anything) — the ResizeObserver needs the element
+  // to exist from mount to measure the preview box correctly.
+  return (
+    <div className="overlay-layer" ref={boxRef}>
+      {overlays.map((o) => (
+        <div
+          key={o.id}
+          className="text-overlay"
+          style={{
+            left: `${ox + o.x * scale}px`,
+            top: `${oy + o.y * scale}px`,
+            fontSize: `${Math.max(8, o.size * scale)}px`,
+            color: o.color,
+          }}
+          title="Drag to move · tap to edit"
+          onPointerDown={(e) => beginDrag(e, o)}
+          onPointerMove={moveDrag}
+          onPointerUp={endDrag}
+          onPointerCancel={() => {
+            gestureRef.current = null;
+          }}
+        >
+          {o.text}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function TeleprompterScroll() {
   /* ---------- account + subscription ---------- */
   const { user, signOut } = useAuth();
@@ -340,12 +441,68 @@ export default function TeleprompterScroll() {
     recordingTimeRef.current = recordingTime;
   }, [recordingTime]);
 
-  /* ---------- green screen state (Starter: blur/color, Pro: image) ---------- */
-  const [gsMode, setGsMode] = useState('off'); // 'off' | 'blur' | 'color' | 'image'
+  /* ---------- background gallery state (Starter+; custom image Pro) ---------- */
+  // 'off' | 'blur' | 'color' | 'image' | 'office' | 'bokeh' | 'sunset'
+  // | 'nature' | 'minimalist'
+  const [gsMode, setGsMode] = useState('off');
   const [gsColor, setGsColor] = useState('#ffffff');
+  // 0–1 slider; each effect maps it to its own range (blur px, glow, …).
+  const [gsIntensity, setGsIntensity] = useState(intensityDefault('off'));
   const [gsStatus, setGsStatus] = useState(''); // '' | 'loading' | 'ready' | 'error'
   const [gsImageName, setGsImageName] = useState('');
   const gsRef = useRef(null); // GreenScreenProcessor
+  const gsIntensityRef = useRef(gsIntensity);
+
+  // Live intensity: pushes straight into the processor each change, so
+  // the slider updates the preview without restarting segmentation.
+  useEffect(() => {
+    gsIntensityRef.current = gsIntensity;
+    if (gsRef.current) gsRef.current.setIntensity(gsIntensity);
+  }, [gsIntensity]);
+
+  /** Switch background mode; the intensity snaps to that mode's default. */
+  const applyGsMode = useCallback((mode) => {
+    setGsMode(mode);
+    setGsIntensity(intensityDefault(mode));
+  }, []);
+
+  /* ---------- text/emoji overlays (session-only, not persisted) ---------- */
+  const [textOverlays, setTextOverlays] = useState([]);
+  const [editingOverlayId, setEditingOverlayId] = useState(null);
+  const textOverlaysRef = useRef(textOverlays);
+  useEffect(() => {
+    textOverlaysRef.current = textOverlays;
+  }, [textOverlays]);
+
+  const patchOverlay = useCallback((id, patch) => {
+    setTextOverlays((prev) =>
+      prev.map((o) => (o.id === id ? { ...o, ...patch } : o))
+    );
+  }, []);
+
+  const moveOverlay = useCallback(
+    (id, x, y) => patchOverlay(id, { x, y }),
+    [patchOverlay]
+  );
+
+  const addOverlay = useCallback(() => {
+    const overlay = createOverlay({
+      // Stagger new layers around the vertical middle: the preview is
+      // cover-cropped, so the top/bottom of the 720p frame may be off
+      // screen in a wide pane — the middle band is always visible.
+      y: 300 + (textOverlaysRef.current.length % 3) * 60,
+    });
+    setTextOverlays((prev) => [...prev, overlay]);
+    setEditingOverlayId(overlay.id);
+  }, []);
+
+  const deleteOverlay = useCallback((id) => {
+    setTextOverlays((prev) => prev.filter((o) => o.id !== id));
+    setEditingOverlayId((cur) => (cur === id ? null : cur));
+  }, []);
+
+  const editingOverlay =
+    textOverlays.find((o) => o.id === editingOverlayId) || null;
   // Visible preview canvases that mirror the compositor's output live,
   // so the user sees the chosen background BEFORE hitting Record.
   const pipFxRef = useRef(null); // overlay inside the camera PIP
@@ -613,10 +770,13 @@ export default function TeleprompterScroll() {
     const gs = gsRef.current;
     gs.setMode(gsMode);
     gs.setColor(gsColor);
+    gs.setIntensity(gsIntensityRef.current);
     gs.smoothEdges = isProRef.current; // Pro gets softer edge blending
 
     setGsStatus('loading');
-    gs.start(videoRef.current)
+    // Photo presets (office/bokeh/nature) also need their image loaded;
+    // canvas-drawn presets resolve immediately.
+    Promise.all([gs.start(videoRef.current), gs.preparePreset(gsMode)])
       .then(() => {
         if (!cancelled) setGsStatus('ready');
       })
@@ -697,7 +857,7 @@ export default function TeleprompterScroll() {
         }
         await gsRef.current.setBackgroundImage(reader.result);
         setGsImageName(file.name);
-        setGsMode('image');
+        applyGsMode('image');
       } catch (err) {
         setBanner(err.message);
         setTimeout(() => setBanner(''), 5000);
@@ -870,6 +1030,10 @@ export default function TeleprompterScroll() {
       ctx.filter = 'none';
     }
 
+    // Decorative text/emoji overlays bake into the recording — after the
+    // background/effects, under the caption bar.
+    drawTextOverlays(ctx, textOverlaysRef.current, width, height);
+
     // Captions only render while the teleprompter is playing.
     if (isPlayingRef.current) {
       const caption = getCurrentCaption();
@@ -929,7 +1093,11 @@ export default function TeleprompterScroll() {
     recordingTimeRef.current = 0;
 
     // The canvas pipeline runs whenever any overlay/effect is active.
-    const needsCanvas = showCaptions || gsMode !== 'off' || filtersActive;
+    const needsCanvas =
+      showCaptions ||
+      gsMode !== 'off' ||
+      filtersActive ||
+      textOverlays.length > 0;
 
     let streamToRecord;
     if (needsCanvas) {
@@ -992,6 +1160,7 @@ export default function TeleprompterScroll() {
     showCaptions,
     gsMode,
     filtersActive,
+    textOverlays,
     drawFrame,
     addTake,
   ]);
@@ -1157,11 +1326,19 @@ export default function TeleprompterScroll() {
     const dx = e.clientX - s.startX;
     const dy = e.clientY - s.startY;
     if (s.mode === 'move') {
-      setPip((p) => ({
-        ...p,
-        x: clamp(s.origX + dx, 0, Math.max(0, s.stageW - p.w)),
-        y: clamp(s.origY + dy, 0, Math.max(0, s.stageH - p.h)),
-      }));
+      setPip((p) => {
+        // Mobile: the PIP lives in the bottom-quarter "safe zone" so it
+        // never sits over the script the speaker is reading. (If the PIP
+        // is taller than the quarter, the zone grows just enough.)
+        const minY = isDesktop
+          ? 0
+          : Math.max(0, Math.min(s.stageH * 0.75, s.stageH - p.h - 8));
+        return {
+          ...p,
+          x: clamp(s.origX + dx, 0, Math.max(0, s.stageW - p.w)),
+          y: clamp(s.origY + dy, minY, Math.max(minY, s.stageH - p.h)),
+        };
+      });
     } else {
       const w = clamp(
         s.origW + dx,
@@ -1202,11 +1379,13 @@ export default function TeleprompterScroll() {
 
   // A camera error forces the PIP visible so Retry is always reachable.
   const pipVisible = showPreview || Boolean(cameraError);
+  // Default dock: BOTTOM-right corner — inside the mobile safe zone, out
+  // of the way of the script. Dragging switches to explicit coordinates.
   const pipStyle = {
     width: `${pip.w}px`,
     height: `${pip.h}px`,
     ...(pip.x === null
-      ? { top: `${pip.y}px`, right: '16px' }
+      ? { bottom: '16px', right: '16px' }
       : { top: `${pip.y}px`, left: `${pip.x}px` }),
   };
 
@@ -1315,91 +1494,21 @@ export default function TeleprompterScroll() {
     </div>
   );
 
-  return (
-    <div className="teleprompter-container">
-      {/* Header */}
-      <header className="header app-header">
-        <img src="/captionscroll-wordmark.jpg" alt="CaptionScroll logo" className="hero-banner" />
-        <div className="app-header-right">
-          {tierBusy ? (
-            <span
-              className="tier-badge tier-loading"
-              role="status"
-              aria-label="Checking your plan"
-            >
-              <span className="tier-spinner" aria-hidden="true" />
-            </span>
-          ) : inTrial ? (
-            <span className={`tier-badge tier-${tier} tier-trial`}>
-              {TIER_LABELS[tier].toUpperCase()} TRIAL
-            </span>
-          ) : (
-            <span className={`tier-badge tier-${tier}`}>{TIER_LABELS[tier]}</span>
-          )}
-          {!tierBusy && inTrial && (
-            <span className="trial-countdown">
-              {trialDaysLeft} {trialDaysLeft === 1 ? 'day' : 'days'} left
-            </span>
-          )}
-          {!tierBusy && (tier !== 'pro' || inTrial) && (
-            <Link to="/pricing" className="upgrade-link">
-              {trialExpired ? '⬆ Upgrade to continue' : '⬆ Upgrade'}
-            </Link>
-          )}
-          <span className="user-email" title={user?.email}>
-            {user?.email}
-          </span>
-          <button className="signout-btn" onClick={() => signOut()}>
-            Sign Out
-          </button>
-        </div>
-      </header>
 
-      {banner && <div className="app-banner">{banner}</div>}
+  // Tap-to-pause: while a mobile recording is rolling, tapping the
+  // script toggles pause/resume (same as the floating pause button).
+  const handleStageTap = () => {
+    if (isRecording && !isDesktop) setIsPlaying((p) => !p);
+  };
 
-      {/* Trial-over notice — shown even weeks later; the app itself stays
-          viewable, only recording features are locked. */}
-      {!tierBusy && trialExpired && !trialBannerDismissed && (
-        <div className="trial-ended-banner" role="status">
-          <span className="trial-ended-text">
-            Your free trial ended {endedAgoText(trialExpiresAt)}. Upgrade to
-            keep recording — your scripts are safe either way.
-          </span>
-          <Link to="/pricing" className="trial-ended-upgrade">
-            Upgrade now
-          </Link>
-          <button
-            className="trial-ended-dismiss"
-            aria-label="Dismiss"
-            onClick={() => setTrialBannerDismissed(true)}
-          >
-            ✕
-          </button>
-        </div>
-      )}
+  // Mobile recording focus: while a take is rolling AND playing on a
+  // phone/tablet, the controls bar + script entry hide so the
+  // teleprompter fills the screen. Pausing (tap or button) brings
+  // them back so Stop Recording is always reachable.
+  const mobileRecFocus = isRecording && isPlaying && !isDesktop;
 
-      {/* First-visit tier picker: 14 days of Starter or Pro, no card. */}
-      {showTrialPicker && (
-        <TrialPicker
-          startTrial={startTrial}
-          onDismiss={dismissTrialPicker}
-          onStarted={(chosen) => {
-            setBanner(
-              `🎉 Your 14-day ${TIER_LABELS[chosen]} trial has started — everything in ${TIER_LABELS[chosen]} is unlocked!`
-            );
-            setTimeout(() => setBanner(''), 8000);
-          }}
-        />
-      )}
-
-      {/* Workspace: on desktop (≥1024px) this is a 50/50 split — the
-          prompter pane (controls + script + stage) on the left and the
-          camera pane (feed + recording controls) on the right. Below
-          1024px both wrappers use `display: contents`, so the layout
-          computes exactly as the original single-column PIP design. */}
-      <div className="workspace">
-        <div className="prompter-pane">
-      {/* Controls */}
+  // Main controls row — rendered once, inside the full-width bottom bar.
+  const controlsRow = (
       <div className="controls">
         <div className="control-group speed-group">
           <label htmlFor="speed-slider">Speed:</label>
@@ -1499,52 +1608,46 @@ export default function TeleprompterScroll() {
           </label>
         </div>
 
-        {/* Green screen — Starter: blur + solid colors; Pro: custom image */}
+        {/* Background gallery — Starter+: presets + colors; Pro adds a
+            custom image upload. Each preset gets an intensity slider. */}
         <SubscriptionGate
           tier={tier}
           requires="starter"
           mode="hide"
-          message="Green screen — upgrade to Starter"
+          message="Backgrounds — upgrade to Starter"
         >
-          <div className="control-group">
-            <label>Green Screen:</label>
-            <select
-              value={gsMode}
-              disabled={isRecording}
-              onChange={(e) => setGsMode(e.target.value)}
-            >
-              <option value="off">Off</option>
-              <option value="blur">Blur</option>
-              <option value="color">Solid Color</option>
-              {isPro && <option value="image">Custom Image (Pro)</option>}
-            </select>
-            {gsMode === 'color' && (
-              <select
-                value={gsColor}
-                disabled={isRecording}
-                onChange={(e) => setGsColor(e.target.value)}
-              >
-                {GS_COLORS.map((c) => (
-                  <option key={c.value} value={c.value}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
-            )}
-            {isPro && gsMode === 'image' && (
-              <label className="gs-upload">
-                <input
-                  type="file"
-                  accept="image/png,image/jpeg"
-                  onChange={handleGsImageUpload}
-                />
-                {gsImageName ? `🖼 ${gsImageName}` : 'Upload background…'}
-              </label>
-            )}
-            {gsStatus === 'loading' && <span className="gs-status">loading…</span>}
-            {gsStatus === 'ready' && <span className="gs-status ready">on</span>}
-          </div>
+          <BackgroundGallery
+            isPro={isPro}
+            gsMode={gsMode}
+            gsColor={gsColor}
+            gsColors={GS_COLORS}
+            gsIntensity={gsIntensity}
+            gsStatus={gsStatus}
+            gsImageName={gsImageName}
+            disabled={isRecording}
+            onMode={applyGsMode}
+            onColor={setGsColor}
+            onIntensity={setGsIntensity}
+            onUpload={handleGsImageUpload}
+          />
         </SubscriptionGate>
+
+        {/* Text/emoji overlays: decorate the camera preview + recording */}
+        <div className="control-group">
+          <button
+            type="button"
+            className="overlay-add-btn"
+            title="Add text or emoji onto your video"
+            onClick={addOverlay}
+          >
+            ✨ Add Text
+          </button>
+          {textOverlays.length > 0 && (
+            <span className="overlay-count">
+              {textOverlays.length} layer{textOverlays.length === 1 ? '' : 's'}
+            </span>
+          )}
+        </div>
 
         {/* Pro tools: filters + speech sync */}
         <SubscriptionGate
@@ -1613,7 +1716,12 @@ export default function TeleprompterScroll() {
           ↺ Reset
         </button>
       </div>
+  );
 
+  // Saved-scripts row + textarea: right-hand bottom pane on desktop,
+  // full-width row between the stage and the controls bar otherwise.
+  const scriptEntry = (
+    <>
       {/* Saved scripts row */}
       <div className="script-bar">
         <select
@@ -1645,92 +1753,207 @@ export default function TeleprompterScroll() {
         value={scriptText}
         onChange={(e) => setScriptText(e.target.value)}
       />
+    </>
+  );
 
-      {/* Stage: full-width teleprompter + floating camera PIP.
-          The <video> element stays mounted even when the PIP is hidden
-          so the canvas compositor keeps receiving frames and recording
-          continues untouched. A camera error forces the PIP visible so
-          the message and Retry button are never hidden. */}
-      <div className="stage" ref={stageRef}>
-        <div
-          ref={displayRef}
-          className={`script-display ${mirrorMode ? 'mirror' : ''}`}
-          style={{ fontSize: `${fontSize}px` }}
-        >
-          {scriptText}
+  return (
+    <div
+      className={`teleprompter-container ${
+        mobileRecFocus ? 'mobile-rec-focus' : ''
+      }`}
+    >
+      {/* Header */}
+      <header className="header app-header">
+        <img src="/captionscroll-wordmark.jpg" alt="CaptionScroll logo" className="hero-banner" />
+        <div className="app-header-right">
+          {tierBusy ? (
+            <span
+              className="tier-badge tier-loading"
+              role="status"
+              aria-label="Checking your plan"
+            >
+              <span className="tier-spinner" aria-hidden="true" />
+            </span>
+          ) : inTrial ? (
+            <span className={`tier-badge tier-${tier} tier-trial`}>
+              {TIER_LABELS[tier].toUpperCase()} TRIAL
+            </span>
+          ) : (
+            <span className={`tier-badge tier-${tier}`}>{TIER_LABELS[tier]}</span>
+          )}
+          {!tierBusy && inTrial && (
+            <span className="trial-countdown">
+              {trialDaysLeft} {trialDaysLeft === 1 ? 'day' : 'days'} left
+            </span>
+          )}
+          {!tierBusy && (tier !== 'pro' || inTrial) && (
+            <Link to="/pricing" className="upgrade-link">
+              {trialExpired ? '⬆ Upgrade to continue' : '⬆ Upgrade'}
+            </Link>
+          )}
+          <span className="user-email" title={user?.email}>
+            {user?.email}
+          </span>
+          <button className="signout-btn" onClick={() => signOut()}>
+            Sign Out
+          </button>
         </div>
+      </header>
 
-        {/* REC badge sits on the stage so it stays visible even when
-            the camera PIP is hidden */}
-        {isRecording && (
-          <div className="rec-badge">
-            <span className="rec-dot" /> REC
+      {banner && <div className="app-banner">{banner}</div>}
+
+      {/* Trial-over notice — shown even weeks later; the app itself stays
+          viewable, only recording features are locked. */}
+      {!tierBusy && trialExpired && !trialBannerDismissed && (
+        <div className="trial-ended-banner" role="status">
+          <span className="trial-ended-text">
+            Your free trial ended {endedAgoText(trialExpiresAt)}. Upgrade to
+            keep recording — your scripts are safe either way.
+          </span>
+          <Link to="/pricing" className="trial-ended-upgrade">
+            Upgrade now
+          </Link>
+          <button
+            className="trial-ended-dismiss"
+            aria-label="Dismiss"
+            onClick={() => setTrialBannerDismissed(true)}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* First-visit tier picker: 14 days of Starter or Pro, no card. */}
+      {showTrialPicker && (
+        <TrialPicker
+          startTrial={startTrial}
+          onDismiss={dismissTrialPicker}
+          onStarted={(chosen) => {
+            setBanner(
+              `🎉 Your 14-day ${TIER_LABELS[chosen]} trial has started — everything in ${TIER_LABELS[chosen]} is unlocked!`
+            );
+            setTimeout(() => setBanner(''), 8000);
+          }}
+        />
+      )}
+
+      {/* ============ Workspace ============
+          Teleprompter stage on top — full width at every breakpoint,
+          50%+ of the viewport tall. Desktop (≥1024px) adds a bottom
+          row: camera feed left, script entry right. Phones/tablets keep
+          the floating camera PIP (docked to the bottom-right safe zone)
+          with the script entry as a full-width row below the stage. All
+          controls live in the full-width bar at the very bottom. */}
+      <div className="workspace">
+        {/* Stage: full-width teleprompter + floating camera PIP.
+            The PIP <video> stays MOUNTED on every breakpoint — even
+            hidden — because it is the recording compositor's one true
+            frame source. A camera error forces the PIP visible so the
+            message and Retry button are never hidden. */}
+        <div className="stage" ref={stageRef}>
+          <div
+            ref={displayRef}
+            className={`script-display ${mirrorMode ? 'mirror' : ''}`}
+            style={{ fontSize: `${fontSize}px` }}
+            onClick={handleStageTap}
+          >
+            {scriptText}
           </div>
-        )}
 
-        {/* Camera PIP — draggable + resizable */}
-        <div
-          ref={pipRef}
-          className={`camera-pip ${pipVisible ? '' : 'pip-hidden'} ${
-            cameraError ? 'pip-error' : ''
-          }`}
-          style={pipStyle}
-          onPointerDown={(e) => beginPipGesture(e, 'move')}
-          onPointerMove={onPipPointerMove}
-          onPointerUp={endPipGesture}
-          onPointerCancel={endPipGesture}
-        >
-          <video
-            ref={videoRef}
-            className="camera-video"
-            autoPlay
-            playsInline
-            muted /* mute preview to avoid feedback; mic still records */
-          />
-          {/* Live effect preview overlay — shows the compositor's output
-              (blur / solid color / custom image) over the raw video */}
-          <canvas
-            ref={pipFxRef}
-            className={`camera-fx ${gsPreviewOn ? 'fx-on' : ''}`}
-            aria-hidden="true"
-          />
-          {cameraError && (
-            <div className="camera-error">
-              <p>{cameraError}</p>
-              <button
-                className="retry-camera-btn"
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={() => setCameraAttempt((n) => n + 1)}
-              >
-                Retry Camera
-              </button>
+          {/* REC badge sits on the stage so it stays visible even when
+              the camera PIP is hidden */}
+          {isRecording && (
+            <div className="rec-badge">
+              <span className="rec-dot" /> REC
             </div>
           )}
-          {!cameraError && recordOnlyEffects && (
-            <span className="pip-note">captions &amp; filters apply to recording</span>
+
+          {/* Mobile recording: floating pause/resume button (the script
+              itself is also tappable — see handleStageTap) */}
+          {isRecording && !isDesktop && (
+            <button
+              type="button"
+              className="mobile-pause-button"
+              onClick={() => setIsPlaying((p) => !p)}
+            >
+              {isPlaying ? '⏸ Pause' : '▶ Resume'}
+            </button>
           )}
-          <span
-            className="pip-resize-handle"
-            onPointerDown={(e) => {
-              e.stopPropagation();
-              beginPipGesture(e, 'resize');
-            }}
+          {isRecording && !isDesktop && !isPlaying && (
+            <div className="mobile-paused-note" role="status">
+              Paused — tap the script to resume
+            </div>
+          )}
+
+          {/* Camera PIP — draggable + resizable. Docked bottom-right in
+              the mobile safe zone; hidden (but mounted) on desktop. */}
+          <div
+            ref={pipRef}
+            className={`camera-pip ${pipVisible ? '' : 'pip-hidden'} ${
+              cameraError ? 'pip-error' : ''
+            }`}
+            style={pipStyle}
+            onPointerDown={(e) => beginPipGesture(e, 'move')}
             onPointerMove={onPipPointerMove}
             onPointerUp={endPipGesture}
             onPointerCancel={endPipGesture}
-            aria-hidden="true"
-          />
+          >
+            <video
+              ref={videoRef}
+              className="camera-video"
+              autoPlay
+              playsInline
+              muted /* mute preview to avoid feedback; mic still records */
+            />
+            {/* Live effect preview overlay — shows the compositor's output
+                (background presets/blur/color/image) over the raw video */}
+            <canvas
+              ref={pipFxRef}
+              className={`camera-fx ${gsPreviewOn ? 'fx-on' : ''}`}
+              aria-hidden="true"
+            />
+            {/* Draggable text/emoji layers (phone/tablet preview) */}
+            {!isDesktop && (
+              <TextOverlayLayer
+                overlays={textOverlays}
+                onMove={moveOverlay}
+                onEdit={setEditingOverlayId}
+              />
+            )}
+            {cameraError && (
+              <div className="camera-error">
+                <p>{cameraError}</p>
+                <button
+                  className="retry-camera-btn"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={() => setCameraAttempt((n) => n + 1)}
+                >
+                  Retry Camera
+                </button>
+              </div>
+            )}
+            {!cameraError && recordOnlyEffects && (
+              <span className="pip-note">captions &amp; filters apply to recording</span>
+            )}
+            <span
+              className="pip-resize-handle"
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                beginPipGesture(e, 'resize');
+              }}
+              onPointerMove={onPipPointerMove}
+              onPointerUp={endPipGesture}
+              onPointerCancel={endPipGesture}
+              aria-hidden="true"
+            />
+          </div>
         </div>
-      </div>
-        </div>{/* /prompter-pane */}
 
-        {/* Desktop ≥1024px: dedicated right-hand camera pane. The floating
-            PIP above is hidden by CSS at this width, but its <video> stays
-            mounted as the compositor's frame source (the long-verified
-            pattern); this pane's <video> simply shows the same MediaStream.
-            Recording controls sit below the feed, inside the pane. */}
+        {/* Desktop ≥1024px bottom row: camera feed (left) + script entry
+            (right). The floating PIP above stays the compositor's frame
+            source; this pane's <video> simply shows the same MediaStream. */}
         {isDesktop && (
-          <div className="camera-pane">
+          <div className="workspace-bottom">
             <div className="camera-pane-feed">
               <video
                 ref={deskVideoRef}
@@ -1748,6 +1971,14 @@ export default function TeleprompterScroll() {
                 style={{ visibility: showPreview ? 'visible' : 'hidden' }}
                 aria-hidden="true"
               />
+              {/* Draggable text/emoji layers — drag to place; tap to edit */}
+              {showPreview && (
+                <TextOverlayLayer
+                  overlays={textOverlays}
+                  onMove={moveOverlay}
+                  onEdit={setEditingOverlayId}
+                />
+              )}
               {!showPreview && !cameraError && (
                 <div className="camera-off-note">
                   Camera preview hidden — recording still uses the camera
@@ -1768,17 +1999,25 @@ export default function TeleprompterScroll() {
                 <span className="pip-note">captions &amp; filters apply to recording</span>
               )}
             </div>
-            {recordingControls}
+            <div className="script-input-pane">{scriptEntry}</div>
           </div>
         )}
       </div>{/* /workspace */}
 
+      {/* Phone/tablet: script entry as a full-width row below the stage
+          (hidden while a mobile recording is rolling) */}
+      {!isDesktop && <div className="script-entry">{scriptEntry}</div>}
+
+      {/* Full-width controls bar fixed to the bottom of the app: main
+          controls row + recording controls. On phones/tablets it hides
+          while a recording is rolling (see mobileRecFocus). */}
+      <div className="recording-controls-bar">
+        {controlsRow}
+        {recordingControls}
+      </div>
+
       {/* Hidden canvas used to composite effects + captions into the recording */}
       <canvas ref={canvasRef} className="compositing-canvas" aria-hidden="true" />
-
-      {/* Recording controls — full-width row on phone/tablet only; on
-          desktop the same block renders inside the camera pane above. */}
-      {!isDesktop && recordingControls}
 
       {/* Pro: multiple takes manager */}
       {isPro && takes.length > 0 && !isRecording && (
@@ -1820,6 +2059,16 @@ export default function TeleprompterScroll() {
             />
           )}
         </div>
+      )}
+
+      {/* Text overlay editor — edits apply live to the preview layers */}
+      {editingOverlay && (
+        <TextOverlayDialog
+          overlay={editingOverlay}
+          onChange={(patch) => patchOverlay(editingOverlay.id, patch)}
+          onDelete={() => deleteOverlay(editingOverlay.id)}
+          onClose={() => setEditingOverlayId(null)}
+        />
       )}
     </div>
   );

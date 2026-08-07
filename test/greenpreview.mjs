@@ -202,14 +202,29 @@ function trackErrors(page) {
   return errors;
 }
 
-const gsSelect = '.controls select:has(option[value="blur"])';
-const colorSelect = '.controls select:has(option[value="#0b8a43"])';
+/* The old mode/color <select>s became the background gallery popover. */
+async function openGallery(page) {
+  if ((await page.locator('.bg-gallery').count()) === 0) {
+    await page.click('.bg-gallery-toggle');
+    await page.waitForSelector('.bg-gallery', { timeout: 4000 });
+  }
+}
+
+async function pickBackground(page, mode) {
+  await openGallery(page);
+  await page.click(`.bg-tile[data-bg="${mode}"]`);
+}
+
+async function pickSwatch(page, value) {
+  await openGallery(page);
+  await page.click(`.bg-swatch[data-color="${value}"]`);
+}
 
 /** Open /app, wait for the tier badge + camera, ready for effect tests. */
 async function openApp(page, tierClass) {
   await page.goto(BASE + '/app');
   await page.waitForSelector(`.tier-badge.${tierClass}`, { timeout: 8000 });
-  await page.waitForSelector(gsSelect, { timeout: 8000 });
+  await page.waitForSelector('.bg-gallery-toggle', { timeout: 8000 });
   // Camera ready = Start Recording enabled (paid tiers only).
   await page.waitForSelector('.record-btn.start:enabled', { timeout: 8000 });
 }
@@ -244,7 +259,7 @@ try {
     );
 
     // --- Blur ---
-    await page.selectOption(gsSelect, 'blur');
+    await pickBackground(page, 'blur');
     await page.waitForSelector('.gs-status.ready', { timeout: 10000 });
     check('gs status shows "on" after selecting Blur', true);
     await page.waitForSelector('.camera-pane-feed canvas.camera-fx.fx-on', {
@@ -283,13 +298,13 @@ try {
     );
 
     // --- Solid colors: Green, Blue, Red — preview updates on each pick ---
-    await page.selectOption(gsSelect, 'color');
+    await pickBackground(page, 'color');
     for (const [label, value, rgb] of [
       ['Green', '#0b8a43', GS_GREEN],
       ['Blue', '#1e5aa8', GS_BLUE],
       ['Red', '#c62828', GS_RED],
     ]) {
-      await page.selectOption(colorSelect, value);
+      await pickSwatch(page, value);
       const bg = await waitForPixel(page, '.camera-pane-feed canvas.camera-fx', BG, rgb);
       check(
         `Solid ${label}: LIVE preview background turns ${label.toLowerCase()}`,
@@ -305,7 +320,7 @@ try {
     }
 
     // --- Toggle Off → raw camera back; on again → preview returns ---
-    await page.selectOption(gsSelect, 'off');
+    await pickBackground(page, 'off');
     await page.waitForFunction(
       () => document.querySelectorAll('.camera-fx.fx-on').length === 0,
       { timeout: 6000 }
@@ -315,7 +330,7 @@ try {
       'raw desktop <video> still present under the overlay',
       (await page.locator('.camera-video-desktop').count()) === 1
     );
-    await page.selectOption(gsSelect, 'blur');
+    await pickBackground(page, 'blur');
     await page.waitForSelector('.camera-pane-feed canvas.camera-fx.fx-on', {
       state: 'visible',
       timeout: 6000,
@@ -353,7 +368,7 @@ try {
     await openApp(page, 'tier-pro');
 
     // Upload a solid-orange background (generated in-page for a real PNG).
-    await page.selectOption(gsSelect, 'image');
+    await pickBackground(page, 'image');
     await page.waitForSelector('.gs-upload input[type="file"]', {
       state: 'attached', // the input itself is visually hidden by CSS
       timeout: 6000,
@@ -391,8 +406,8 @@ try {
     );
 
     // Switch to Solid Red, record, and verify the SAVED take matches.
-    await page.selectOption(gsSelect, 'color');
-    await page.selectOption(colorSelect, '#c62828');
+    await pickBackground(page, 'color');
+    await pickSwatch(page, '#c62828');
     const preBg = await waitForPixel(page, '.camera-pane-feed canvas.camera-fx', BG, GS_RED);
     check('switching image → Solid Red updates the preview', near(preBg, GS_RED), JSON.stringify(preBg));
 
@@ -469,8 +484,8 @@ try {
       (await page.locator('canvas.camera-fx').count()) === 1
     );
 
-    await page.selectOption(gsSelect, 'color');
-    await page.selectOption(colorSelect, '#0b8a43');
+    await pickBackground(page, 'color');
+    await pickSwatch(page, '#0b8a43');
     await page.waitForSelector('.gs-status.ready', { timeout: 10000 });
     await page.waitForSelector('.camera-pip canvas.camera-fx.fx-on', {
       state: 'visible',
@@ -490,7 +505,7 @@ try {
       JSON.stringify(pipPerson)
     );
 
-    await page.selectOption(gsSelect, 'off');
+    await pickBackground(page, 'off');
     await page.waitForFunction(
       () => document.querySelectorAll('.camera-fx.fx-on').length === 0,
       { timeout: 6000 }

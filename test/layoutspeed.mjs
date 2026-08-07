@@ -2,11 +2,13 @@
  * CaptionScroll responsive-layout + speed-control tests
  * (headless Chromium, fake camera/mic).
  *
- * Covers:
- *  - Desktop (1920/1440/1024): 50/50 side-by-side split — teleprompter
- *    left, camera pane + recording controls right; floating PIP hidden
- *    but its <video> still mounted (recording compositor source).
- *  - Tablet (800/768) + mobile (480/375): original PIP layout unchanged.
+ * Covers (updated for the 1.0.0 layout — teleprompter on top, camera +
+ * script entry row below on desktop, full-width controls bar at bottom;
+ * test/layout-1.0.0.mjs is the deep layout suite):
+ *  - Desktop (1920/1440/1024): stage on top, workspace-bottom split,
+ *    controls bar at the bottom; floating PIP hidden but its <video>
+ *    still mounted (recording compositor source).
+ *  - Tablet (800/768) + mobile (480/375): floating-PIP layout.
  *  - Live resize across the 1024px breakpoint, including mid-recording.
  *  - Speed slider 0.1x–1.0x + numeric input: bidirectional sync,
  *    validation, localStorage persistence, real scroll-rate at extremes,
@@ -164,30 +166,30 @@ try {
     await page.goto(BASE + '/app');
     await page.waitForSelector('.stage', { timeout: 8000 });
 
-    check('camera pane rendered', (await page.locator('.camera-pane').count()) === 1);
-    const prompter = await page.locator('.prompter-pane').boundingBox();
-    const camera = await page.locator('.camera-pane').boundingBox();
     check(
-      'panes are side-by-side ~50/50',
-      prompter && camera &&
-        Math.abs(prompter.width - width / 2) < 8 &&
-        Math.abs(camera.width - width / 2) < 8 &&
-        camera.x >= prompter.x + prompter.width - 2,
-      `(prompter ${Math.round(prompter?.width)}px, camera ${Math.round(camera?.width)}px)`
+      'bottom row rendered (camera + script entry)',
+      (await page.locator('.workspace-bottom').count()) === 1
+    );
+    const stage = await page.locator('.stage').boundingBox();
+    check(
+      'teleprompter stage spans the full width on top',
+      stage && Math.abs(stage.width - width) < 4 && stage.height >= 900 * 0.45,
+      `(stage ${Math.round(stage?.width)}x${Math.round(stage?.height)})`
+    );
+    const feed = await page.locator('.camera-pane-feed').boundingBox();
+    const entry = await page.locator('.script-input-pane').boundingBox();
+    check(
+      'camera feed left of the script entry pane',
+      feed && entry && entry.x >= feed.x + feed.width - 2,
+      `(feed ${Math.round(feed?.width)}px, entry ${Math.round(entry?.width)}px)`
     );
     check(
       'desktop camera feed visible',
       await page.locator('.camera-video-desktop').isVisible()
     );
-    const feed = await page.locator('.camera-pane-feed').boundingBox();
     check(
-      'camera feed fills most of the pane height',
-      feed && camera && feed.height > camera.height * 0.6,
-      `(feed ${Math.round(feed?.height)}px of ${Math.round(camera?.height)}px)`
-    );
-    check(
-      'recording controls inside camera pane',
-      (await page.locator('.camera-pane .recording-controls').count()) === 1 &&
+      'one recording-controls row inside the full-width bottom bar',
+      (await page.locator('.recording-controls-bar .recording-controls').count()) === 1 &&
         (await page.locator('.recording-controls').count()) === 1
     );
     check(
@@ -196,8 +198,8 @@ try {
         !(await page.locator('.camera-pip').isVisible())
     );
     check(
-      'controls in left pane (speed slider present)',
-      (await page.locator('.prompter-pane #speed-slider').count()) === 1
+      'speed slider lives in the bottom controls bar',
+      (await page.locator('.recording-controls-bar #speed-slider').count()) === 1
     );
     check('no page scroll', await noPageScroll(page));
     await context.close();
@@ -214,7 +216,10 @@ try {
     watchConsole(page, `tablet-${width}`);
     await page.goto(BASE + '/app');
     await page.waitForSelector('.stage', { timeout: 8000 });
-    check('no camera pane', (await page.locator('.camera-pane').count()) === 0);
+    check(
+      'no desktop bottom row',
+      (await page.locator('.workspace-bottom').count()) === 0
+    );
     check('floating PIP visible', await page.locator('.camera-pip').isVisible());
     const stage = await page.locator('.stage').boundingBox();
     check(
@@ -223,9 +228,9 @@ try {
       `(stage ${Math.round(stage?.width)}px)`
     );
     check(
-      'recording controls full-width below stage',
+      'recording controls in the full-width bottom bar',
       (await page.locator('.recording-controls').count()) === 1 &&
-        (await page.locator('.camera-pane .recording-controls').count()) === 0
+        (await page.locator('.recording-controls-bar .recording-controls').count()) === 1
     );
     check('no page scroll', await noPageScroll(page));
     await context.close();
@@ -242,7 +247,10 @@ try {
     watchConsole(page, `mobile-${width}`);
     await page.goto(BASE + '/app');
     await page.waitForSelector('.stage', { timeout: 8000 });
-    check('no camera pane', (await page.locator('.camera-pane').count()) === 0);
+    check(
+      'no desktop bottom row',
+      (await page.locator('.workspace-bottom').count()) === 0
+    );
     check('floating PIP visible', await page.locator('.camera-pip').isVisible());
     check(
       'recording controls reachable',
@@ -263,13 +271,16 @@ try {
     watchConsole(page, 'resize');
     await page.goto(BASE + '/app');
     await page.waitForSelector('.record-btn.start:enabled', { timeout: 8000 });
-    check('starts in split layout', (await page.locator('.camera-pane').count()) === 1);
+    check(
+      'starts with the desktop bottom row',
+      (await page.locator('.workspace-bottom').count()) === 1
+    );
 
     await page.setViewportSize({ width: 800, height: 800 });
     await page.waitForTimeout(300);
     check(
       'shrink → PIP layout',
-      (await page.locator('.camera-pane').count()) === 0 &&
+      (await page.locator('.workspace-bottom').count()) === 0 &&
         (await page.locator('.camera-pip').isVisible())
     );
     check('no page scroll after shrink', await noPageScroll(page));
@@ -277,8 +288,8 @@ try {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.waitForTimeout(300);
     check(
-      'grow → split layout again, camera feed live',
-      (await page.locator('.camera-pane').count()) === 1 &&
+      'grow → desktop bottom row again, camera feed live',
+      (await page.locator('.workspace-bottom').count()) === 1 &&
         (await page.locator('.camera-video-desktop').isVisible())
     );
 
@@ -290,6 +301,10 @@ try {
     await page.waitForTimeout(800);
     await page.setViewportSize({ width: 800, height: 800 });
     await page.waitForTimeout(1200);
+    // The mobile layout hides the controls while a take is rolling —
+    // tap the script (tap-to-pause) to bring them back, then stop.
+    await page.click('.script-display', { position: { x: 100, y: 100 } });
+    await page.waitForSelector('.record-btn.stop', { timeout: 4000 });
     await page.click('.record-btn.stop');
     await page.waitForSelector('.record-btn.download', { timeout: 5000 });
     check(

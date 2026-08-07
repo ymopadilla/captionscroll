@@ -294,11 +294,15 @@ try {
     await page.waitForSelector('.record-btn.start:enabled', { timeout: 8000 });
     check('recording enabled on Pro trial', true);
     check('Pro filters visible', (await page.locator('.pro-filters').count()) === 1);
+    // Custom Image lives in the background gallery popover now.
+    await page.click('.bg-gallery-toggle');
+    await page.waitForSelector('.bg-gallery', { timeout: 4000 });
     check(
       'speech sync + custom image available',
       (await page.textContent('.controls')).includes('Speech Caption Sync') &&
-        (await page.textContent('.controls')).includes('Custom Image')
+        (await page.locator('.bg-tile[data-bg="image"]').count()) === 1
     );
+    await page.click('.bg-gallery-toggle'); // close the popover again
     check(
       'upgrade link visible during Pro trial',
       (await page.locator('.upgrade-link').count()) === 1

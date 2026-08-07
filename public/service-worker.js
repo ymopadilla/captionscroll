@@ -4,7 +4,7 @@
 // requests (Supabase, Stripe) are never intercepted or cached — the live
 // app (auth, payments, recording) always talks to the network directly.
 
-const CACHE_NAME = 'captionscroll-v2';
+const CACHE_NAME = 'captionscroll-v3';
 
 // Precached app shell. Hashed build assets (JS/CSS) get their real names at
 // build time, so they are picked up by the runtime cache on first fetch.
@@ -12,10 +12,9 @@ const STATIC_ASSETS = [
   '/',
   '/manifest.json',
   '/favicon.png',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
-  '/icons/icon-maskable-192.png',
-  '/icons/icon-maskable-512.png'
+  '/icon-192.png',
+  '/icon-512.png',
+  '/icon-maskable-512.png'
 ];
 
 self.addEventListener('install', (event) => {

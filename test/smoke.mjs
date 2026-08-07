@@ -214,17 +214,24 @@ try {
     // PIP: visible, draggable, hideable with video still mounted.
     const pip = page.locator('.camera-pip');
     check('PIP visible', await pip.isVisible());
+    // The PIP docks bottom-right and is clamped to the bottom "safe
+    // zone" on <1024px, so drag it HORIZONTALLY and check it stays low.
+    const stageBox = await page.locator('.stage').boundingBox();
     const before = await pip.boundingBox();
-    await page.mouse.move(before.x + before.w / 2 || before.x + 60, before.y + 20);
     await page.mouse.move(before.x + 60, before.y + 20);
     await page.mouse.down();
-    await page.mouse.move(before.x - 300, before.y + 200, { steps: 8 });
+    await page.mouse.move(before.x - 300, before.y + 20, { steps: 8 });
     await page.mouse.up();
     const after = await pip.boundingBox();
     check(
-      'PIP drags to a new position',
-      Math.abs(after.x - before.x) > 100 && Math.abs(after.y - before.y) > 50,
+      'PIP drags to a new position (horizontal)',
+      Math.abs(after.x - before.x) > 100,
       `(moved ${Math.round(after.x - before.x)},${Math.round(after.y - before.y)})`
+    );
+    check(
+      'PIP stays in the bottom safe zone',
+      after.y + after.height >= stageBox.y + stageBox.height * 0.6,
+      `(pip bottom ${Math.round(after.y + after.height)}, stage bottom ${Math.round(stageBox.y + stageBox.height)})`
     );
 
     await page.uncheck('.controls input[type="checkbox"] >> nth=1').catch(() => {});
@@ -253,13 +260,17 @@ try {
       (await page.textContent('.tier-badge')) === 'Starter'
     );
     check(
-      'green screen select visible',
-      (await page.locator('.controls select').first().isVisible())
+      'background gallery toggle visible',
+      await page.locator('.bg-gallery-toggle').isVisible()
     );
+    await page.click('.bg-gallery-toggle');
+    await page.waitForSelector('.bg-gallery', { timeout: 4000 });
     check(
-      'no Custom Image option on Starter',
-      !(await page.textContent('.controls')).includes('Custom Image')
+      'eight tiles, no Custom Image tile on Starter',
+      (await page.locator('.bg-tile').count()) === 8 &&
+        (await page.locator('.bg-tile[data-bg="image"]').count()) === 0
     );
+    await page.click('.bg-gallery-toggle'); // close the popover
     check(
       'no Pro filters on Starter',
       (await page.locator('.pro-filters').count()) === 0
@@ -311,10 +322,13 @@ try {
       'speech sync checkbox present',
       (await page.textContent('.controls')).includes('Speech Caption Sync')
     );
+    await page.click('.bg-gallery-toggle');
+    await page.waitForSelector('.bg-gallery', { timeout: 4000 });
     check(
-      'Custom Image option present',
-      (await page.textContent('.controls')).includes('Custom Image')
+      'Custom Image tile present for Pro',
+      (await page.locator('.bg-tile[data-bg="image"]').count()) === 1
     );
+    await page.click('.bg-gallery-toggle'); // close the popover
 
     // Record two takes -> takes manager appears.
     await page.waitForFunction(

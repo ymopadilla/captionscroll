@@ -1166,61 +1166,78 @@
 }
 
 /* ============================================================
- * Responsive workspace
+ * 1.0.0 workspace layout
  *
- * Phone + tablet (<1024px): .workspace and .prompter-pane use
- * `display: contents`, so their children participate directly in the
- * .teleprompter-container column flex — the layout computes exactly
- * as the original full-width-stage + floating-camera-PIP design.
+ * Every breakpoint: the teleprompter stage sits on top (full width,
+ * the tallest thing on screen) and ALL controls live in a full-width
+ * bar fixed to the very bottom of the app.
  *
- * Desktop (≥1024px): the workspace becomes a 50/50 side-by-side
- * split — teleprompter on the left, camera + recording controls on
- * the right — so the script column is narrower and far easier to
- * read while recording.
+ * Desktop (≥1024px): a bottom row splits into the camera feed (left,
+ * ~55%) and the script entry (right, capped ~520px for readability).
+ *
+ * Phone/tablet (<1024px): the floating camera PIP docks to the
+ * stage's bottom-right "safe zone" (bottom quarter); the script entry
+ * is a full-width row between the stage and the controls bar. While a
+ * recording is rolling the controls + script entry hide and the
+ * teleprompter expands (see .mobile-rec-focus).
  * ============================================================ */
 
-.workspace,
-.prompter-pane {
+.workspace {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0; /* let the stage/bottom row shrink inside 100dvh */
+  width: 100%;
+}
+
+.workspace .stage {
+  flex: 1 1 auto;
+}
+
+/* Script bar + textarea style themselves; the wrapper is transparent. */
+.script-entry {
   display: contents;
 }
 
-/* Not rendered below 1024px (JS-gated), but keep CSS defensive. */
-.camera-pane {
-  display: none;
+/* Full-width bar at the very bottom: main controls + recording row. */
+.recording-controls-bar {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.recording-controls-bar .controls {
+  border-bottom: none;
+  border-top: 1px solid #e9ecef;
+  box-shadow: none;
+}
+
+.recording-controls-bar .recording-controls {
+  border-top: 1px solid #e9ecef;
 }
 
 @media (min-width: 1024px) {
-  .workspace {
+  /* The teleprompter always owns 50%+ of the screen. */
+  .workspace .stage {
+    min-height: 50vh;
+  }
+
+  /* Bottom row: camera feed left, script entry right. */
+  .workspace-bottom {
     display: flex;
     flex-direction: row;
-    flex: 1 1 0;
-    min-height: 0; /* allow the panes to shrink inside 100dvh */
+    flex: 0 1 clamp(150px, 30vh, 340px);
+    min-height: 0;
     width: 100%;
-  }
-
-  /* Left pane: controls + script bar + input + scrolling script. */
-  .prompter-pane {
-    display: flex;
-    flex-direction: column;
-    flex: 0 0 50%;
-    min-width: 0;
-    min-height: 0;
-  }
-
-  /* Right pane: camera feed on top, recording controls below. */
-  .camera-pane {
-    display: flex;
-    flex-direction: column;
-    flex: 0 0 50%;
-    min-width: 0;
-    min-height: 0;
-    border-left: 1px solid #e9ecef;
+    border-top: 1px solid #e9ecef;
   }
 
   .camera-pane-feed {
-    position: relative; /* anchors error overlay + effects note */
-    flex: 1 1 0;
-    min-height: 120px;
+    position: relative; /* anchors error overlay + effects note + text layers */
+    flex: 1 1 55%;
+    min-width: 0;
+    min-height: 0;
     background: #0d1117;
     overflow: hidden;
   }
@@ -1252,17 +1269,440 @@
     bottom: 8px;
   }
 
-  /* The floating PIP is replaced by the camera pane at this width. Its
-     <video> must STAY MOUNTED (it feeds the recording compositor), so
-     hide it with visibility, never display:none/unmount. */
+  /* Script entry pane: compact column, textarea scrolls internally. */
+  .script-input-pane {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 45%;
+    min-width: 260px;
+    max-width: 520px; /* keep the textarea a readable width */
+    min-height: 0;
+    border-left: 1px solid #e9ecef;
+    background: white;
+  }
+
+  .script-input-pane .script-bar {
+    border-bottom: 1px solid #e9ecef;
+  }
+
+  .script-input-pane .script-input {
+    flex: 1 1 auto;
+    min-height: 0;
+    border: none;
+    overflow-y: auto;
+  }
+
+  /* The floating PIP is replaced by the camera feed pane at this width.
+     Its <video> must STAY MOUNTED (it feeds the recording compositor),
+     so hide it with visibility, never display:none/unmount. */
   .camera-pip {
     visibility: hidden;
     pointer-events: none;
   }
+}
 
-  /* Recording controls live inside the camera pane on desktop. */
-  .camera-pane .recording-controls {
-    border-top: 1px solid #e9ecef;
-    box-shadow: none;
+/* ---------- phone/tablet: PIP safe zone + recording focus ---------- */
+
+@media (max-width: 1023.98px) {
+  /* Script text scrolls ABOVE the PIP safe zone (bottom quarter), so
+     the camera never covers the lines being read. */
+  .script-display {
+    padding-bottom: clamp(140px, 26vh, 280px);
   }
+}
+
+/* While a mobile recording is rolling: controls + script entry hide,
+   the stage expands. Pausing removes the class so Stop is reachable.
+   (The class is only ever set on <1024px viewports.) */
+.mobile-rec-focus .recording-controls-bar,
+.mobile-rec-focus .script-entry,
+.mobile-rec-focus .takes-bar {
+  display: none;
+}
+
+/* Floating pause/resume during mobile recording (bottom-left, clear of
+   the PIP in the bottom-right safe zone) */
+.mobile-pause-button {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  z-index: 5;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(13, 17, 23, 0.78);
+  color: white;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+
+.mobile-paused-note {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(13, 17, 23, 0.72);
+  color: white;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* ============================================================
+ * Background gallery (6 presets + colors + custom upload)
+ * ============================================================ */
+
+.bg-group {
+  position: relative; /* anchors the popover */
+}
+
+.bg-gallery-toggle {
+  padding: 6px 12px;
+  border: 1px solid #dde2e6;
+  border-radius: 6px;
+  background: white;
+  font-size: 13px;
+  font-weight: 600;
+  color: #2c3e50;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.bg-gallery-toggle:hover {
+  border-color: #0052cc;
+  color: #0052cc;
+}
+
+.bg-gallery-toggle.bg-active {
+  border-color: #0052cc;
+  color: #0052cc;
+  background: #f0f6ff;
+}
+
+/* Popover opens UPWARD (the controls bar sits at the screen bottom). */
+.bg-gallery {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 0;
+  z-index: 55;
+  width: 322px;
+  padding: 12px;
+  background: white;
+  border: 1px solid #dde2e6;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+}
+
+.bg-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.bg-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 4px;
+  border: 1px solid #dde2e6;
+  border-radius: 8px;
+  background: #fbfcfd;
+  cursor: pointer;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.bg-tile:hover:not(:disabled) {
+  border-color: #0052cc;
+}
+
+.bg-tile:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.bg-tile-active {
+  border-color: #0052cc;
+  background: #f0f6ff;
+  box-shadow: 0 0 0 1px #0052cc;
+}
+
+.bg-tile-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.bg-tile-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #2c3e50;
+  white-space: nowrap;
+}
+
+.bg-swatches {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.bg-swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid #dde2e6;
+  cursor: pointer;
+  padding: 0;
+}
+
+.bg-swatch-active {
+  border-color: #0052cc;
+  box-shadow: 0 0 0 2px rgba(0, 82, 204, 0.35);
+}
+
+.bg-gallery .gs-upload {
+  display: block;
+  margin-top: 10px;
+  max-width: none;
+  text-align: center;
+}
+
+.bg-intensity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.bg-intensity-label {
+  flex: 0 0 auto;
+  min-width: 110px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.bg-intensity-slider {
+  flex: 1 1 auto;
+  accent-color: #0052cc;
+  cursor: pointer;
+}
+
+@media (max-width: 640px) {
+  /* Small phones: the popover becomes a fixed bottom sheet. */
+  .bg-gallery {
+    position: fixed;
+    left: 10px;
+    right: 10px;
+    bottom: 84px;
+    width: auto;
+  }
+}
+
+/* ============================================================
+ * Text/emoji overlays: draggable layers + editor dialog
+ * ============================================================ */
+
+.overlay-add-btn {
+  padding: 6px 12px;
+  border: 1px solid #dde2e6;
+  border-radius: 6px;
+  background: white;
+  font-size: 13px;
+  font-weight: 600;
+  color: #2c3e50;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.overlay-add-btn:hover {
+  border-color: #0052cc;
+  color: #0052cc;
+}
+
+.overlay-count {
+  font-size: 11px;
+  font-weight: 600;
+  color: #5a6c7d;
+  white-space: nowrap;
+}
+
+/* Layer host: covers the camera preview box; individual layers accept
+   pointer events, the host itself does not. */
+.overlay-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.text-overlay {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  cursor: move;
+  font-family: Arial, -apple-system, 'Segoe UI', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none; /* pointer events handle drag on touch screens */
+}
+
+.text-overlay:hover {
+  outline: 1px dashed rgba(255, 255, 255, 0.7);
+  outline-offset: 3px;
+}
+
+/* Editor dialog */
+.text-overlay-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(10, 22, 48, 0.45);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.text-overlay-dialog {
+  width: 100%;
+  max-width: 380px;
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+}
+
+.text-overlay-dialog h3 {
+  margin: 0 0 4px;
+  font-size: 17px;
+  color: #17233d;
+}
+
+.overlay-hint {
+  margin: 0 0 14px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #5a6c7d;
+}
+
+.overlay-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.overlay-field > span {
+  font-size: 12px;
+  font-weight: 700;
+  color: #2c3e50;
+}
+
+.overlay-size-value {
+  font-style: normal;
+  font-weight: 600;
+  color: #0052cc;
+}
+
+.overlay-field-inline {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.overlay-text-input {
+  padding: 8px 10px;
+  border: 1px solid #dde2e6;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #2c3e50;
+}
+
+.overlay-text-input:focus {
+  outline: none;
+  border-color: #0052cc;
+}
+
+.overlay-emoji-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: -4px 0 12px;
+}
+
+.overlay-emoji-btn {
+  padding: 4px 7px;
+  border: 1px solid #eef1f4;
+  border-radius: 6px;
+  background: #fbfcfd;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.overlay-emoji-btn:hover {
+  border-color: #0052cc;
+}
+
+.overlay-color-input {
+  width: 44px;
+  height: 30px;
+  padding: 2px;
+  border: 1px solid #dde2e6;
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+}
+
+.overlay-size-slider {
+  width: 100%;
+  accent-color: #0052cc;
+  cursor: pointer;
+}
+
+.overlay-dialog-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.overlay-delete-btn {
+  padding: 8px 14px;
+  border: 1px solid #f1c2c7;
+  border-radius: 6px;
+  background: #fff5f6;
+  color: #c82333;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.overlay-delete-btn:hover {
+  background: #fde8ea;
+}
+
+.overlay-done-btn {
+  padding: 8px 18px;
+  border: none;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #0052cc 0%, #0041a3 100%);
+  color: white;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
 }
