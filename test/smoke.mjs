@@ -189,6 +189,10 @@ try {
   {
     const context = await newAppContext(browser, 'free');
     const page = await context.newPage();
+    // The floating camera PIP is the phone/tablet layout (<1024px); at
+    // ≥1024px it's replaced by the side-by-side camera pane. Run the PIP
+    // checks at a tablet-sized viewport.
+    await page.setViewportSize({ width: 900, height: 800 });
     await page.goto(BASE + '/app');
     await page.waitForSelector('.stage', { timeout: 8000 });
     check('tier badge Free', (await page.textContent('.tier-badge')) === 'Free');

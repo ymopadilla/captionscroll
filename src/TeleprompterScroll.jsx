@@ -46,6 +46,39 @@ const PIP_DEFAULT = { w: 120, h: 150 };
 const PIP_MIN = { w: 80, h: 100 };
 const PIP_MAX = { w: 300, h: 400 };
 
+// Teleprompter speed range. 1.0x is the fastest (40 px/s, matching the
+// previous "1x"), 0.1x is a slow crawl for careful on-camera reading.
+const SPEED_MIN = 0.1;
+const SPEED_MAX = 1.0;
+const SPEED_DEFAULT = 0.5;
+const SPEED_STORAGE_KEY = 'cs-scroll-speed';
+// Pixels per second at 1.0x (the old engine moved 2px every 50ms per unit).
+const SPEED_PX_PER_SECOND = 40;
+
+/** Parse + clamp a speed value; returns null when it isn't usable. */
+function sanitizeSpeed(value) {
+  const n = typeof value === 'number' ? value : parseFloat(value);
+  if (!Number.isFinite(n)) return null;
+  if (n < SPEED_MIN || n > SPEED_MAX) return null;
+  return Math.round(n * 100) / 100;
+}
+
+/** Last speed the user picked, restored across sessions. */
+function loadStoredSpeed() {
+  try {
+    const stored = sanitizeSpeed(window.localStorage.getItem(SPEED_STORAGE_KEY));
+    if (stored !== null) return stored;
+  } catch {
+    /* private mode — fall through to the default */
+  }
+  return SPEED_DEFAULT;
+}
+
+// Desktop split-screen breakpoint. ≥1024px: teleprompter left, camera +
+// recording controls right. Below that (tablet + phone) the floating
+// camera PIP layout is used unchanged.
+const DESKTOP_QUERY = '(min-width: 1024px)';
+
 /** Pick the best MediaRecorder MIME type this browser supports. */
 function pickMimeType() {
   if (typeof MediaRecorder === 'undefined' || !MediaRecorder.isTypeSupported) {
@@ -221,10 +254,50 @@ export default function TeleprompterScroll() {
   /* ---------- existing teleprompter state ---------- */
   const [scriptText, setScriptText] = useState('');
   const [isPlaying, setIsPlaying] = useState(false);
-  const [scrollSpeed, setScrollSpeed] = useState(1);
+  const [scrollSpeed, setScrollSpeed] = useState(loadStoredSpeed);
+  // Draft text in the speed input — kept as a string so partial entries
+  // ("0.", "0.3") don't get clobbered mid-keystroke. Committed to
+  // scrollSpeed the moment it parses to a valid 0.1–1.0 value.
+  const [speedDraft, setSpeedDraft] = useState(() => loadStoredSpeed().toFixed(2));
   const [fontSize, setFontSize] = useState(24);
   const [mirrorMode, setMirrorMode] = useState(false);
   const displayRef = useRef(null);
+  // Float scroll position accumulator: at 0.1x the per-frame movement is
+  // well under 1px, and element.scrollTop quantizes to whole pixels —
+  // "scrollTop += 0.07" would round back down and never move. So the
+  // engine advances this float and assigns it each frame instead.
+  const scrollPosRef = useRef(0);
+
+  /** Set a new validated speed and mirror it into the input draft. */
+  const applySpeed = useCallback((value) => {
+    const speed = sanitizeSpeed(value);
+    if (speed === null) return false;
+    setScrollSpeed(speed);
+    setSpeedDraft(speed.toFixed(2));
+    return true;
+  }, []);
+
+  // Persist the chosen speed across sessions.
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(SPEED_STORAGE_KEY, String(scrollSpeed));
+    } catch {
+      /* private mode — session-only speed is fine */
+    }
+  }, [scrollSpeed]);
+
+  /* ---------- responsive layout mode ---------- */
+  // ≥1024px: side-by-side split (teleprompter left, camera right).
+  // <1024px: the original full-width stage + floating camera PIP.
+  const [isDesktop, setIsDesktop] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia(DESKTOP_QUERY).matches
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(DESKTOP_QUERY);
+    const onChange = (e) => setIsDesktop(e.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
 
   /* ---------- recording state ---------- */
   const [showCaptions, setShowCaptions] = useState(false); // "Embed Captions" — default NO
@@ -240,6 +313,7 @@ export default function TeleprompterScroll() {
 
   /* ---------- refs for recording plumbing ---------- */
   const videoRef = useRef(null); // live <video> preview (inside the PIP)
+  const deskVideoRef = useRef(null); // desktop split-screen preview (same stream)
   const canvasRef = useRef(null); // hidden compositing canvas
   const streamRef = useRef(null); // camera + mic MediaStream
   const mediaRecorderRef = useRef(null);
@@ -394,19 +468,48 @@ export default function TeleprompterScroll() {
   }, [searchParams, setSearchParams, user, refreshTier]);
 
   /* ============================================================
-   * Existing scrolling logic (unchanged)
+   * Scrolling engine — rAF + float accumulator so sub-pixel speeds
+   * (0.1x ≈ 4px/s) still advance smoothly instead of rounding to zero.
    * ============================================================ */
   useEffect(() => {
-    if (!isPlaying || !displayRef.current) return;
+    const el = displayRef.current;
+    if (!isPlaying || !el) return undefined;
 
-    const interval = setInterval(() => {
-      displayRef.current.scrollTop += scrollSpeed * 2;
-    }, 50);
+    // Programmatic assignments must not fight the CSS smooth-scroll
+    // animation (each assignment would restart it and lag the position).
+    const prevBehavior = el.style.scrollBehavior;
+    el.style.scrollBehavior = 'auto';
 
-    return () => clearInterval(interval);
+    scrollPosRef.current = el.scrollTop;
+    let last = performance.now();
+    let raf = requestAnimationFrame(function step(now) {
+      // Cap the delta so a background-tab pause doesn't jump the script.
+      const dt = Math.min((now - last) / 1000, 0.1);
+      last = now;
+      const node = displayRef.current;
+      if (node) {
+        // If the user scrolled manually mid-play, resync to their spot.
+        if (Math.abs(node.scrollTop - scrollPosRef.current) > 2) {
+          scrollPosRef.current = node.scrollTop;
+        }
+        const maxScroll = Math.max(0, node.scrollHeight - node.clientHeight);
+        scrollPosRef.current = Math.min(
+          scrollPosRef.current + scrollSpeed * SPEED_PX_PER_SECOND * dt,
+          maxScroll
+        );
+        node.scrollTop = scrollPosRef.current;
+      }
+      raf = requestAnimationFrame(step);
+    });
+
+    return () => {
+      cancelAnimationFrame(raf);
+      el.style.scrollBehavior = prevBehavior;
+    };
   }, [isPlaying, scrollSpeed]);
 
   const handleReset = () => {
+    scrollPosRef.current = 0;
     if (displayRef.current) {
       displayRef.current.scrollTop = 0;
     }
@@ -470,15 +573,23 @@ export default function TeleprompterScroll() {
     };
   }, [cameraAttempt]);
 
-  // Keep the video element attached to the live stream across re-renders
-  // (e.g. after a camera retry succeeds while the error overlay unmounts).
+  // Keep the video elements attached to the live stream across re-renders
+  // (e.g. after a camera retry succeeds while the error overlay unmounts,
+  // or when the desktop camera pane mounts on a breakpoint change). The
+  // PIP video stays the canonical compositor source on every breakpoint;
+  // the desktop pane's <video> just mirrors the same MediaStream.
   useEffect(() => {
-    if (cameraReady && videoRef.current && streamRef.current) {
-      if (videoRef.current.srcObject !== streamRef.current) {
-        videoRef.current.srcObject = streamRef.current;
-      }
+    if (!cameraReady || !streamRef.current) return;
+    if (videoRef.current && videoRef.current.srcObject !== streamRef.current) {
+      videoRef.current.srcObject = streamRef.current;
     }
-  }, [cameraReady, cameraError]);
+    if (
+      deskVideoRef.current &&
+      deskVideoRef.current.srcObject !== streamRef.current
+    ) {
+      deskVideoRef.current.srcObject = streamRef.current;
+    }
+  }, [cameraReady, cameraError, isDesktop]);
 
   /* ============================================================
    * Green screen processor lifecycle
@@ -1068,6 +1179,91 @@ export default function TeleprompterScroll() {
     !tierBusy && trialEligible && !pickerDismissed && !hasCheckoutIntent;
   const inTrial = subscriptionStatus === 'trial';
 
+  // Rendered in exactly ONE place per breakpoint: inside the camera pane
+  // on desktop (below the feed), full-width below the stage otherwise.
+  const recordingControls = (
+    <div className="recording-controls">
+      {!recorderSupported && (
+        <span className="recording-unsupported">
+          Video recording is not supported in this browser. Try the latest
+          Chrome, Edge, Firefox, or Safari.
+        </span>
+      )}
+
+      <button
+        className="record-btn start"
+        onClick={startRecording}
+        disabled={
+          tierBusy ||
+          !canRecord ||
+          !recorderSupported ||
+          !cameraReady ||
+          isRecording
+        }
+      >
+        ⏺ Start Recording
+      </button>
+
+      {tierBusy ? (
+        <span className="tier-checking" role="status">
+          <span className="tier-spinner" aria-hidden="true" />
+          Checking your plan…
+        </span>
+      ) : (
+        !canRecord && (
+          <Link to="/pricing" className="record-locked">
+            🔒 Upgrade to Starter to start recording
+          </Link>
+        )
+      )}
+
+      <button
+        className="record-btn stop"
+        onClick={stopRecording}
+        disabled={!isRecording}
+      >
+        ⏹ Stop Recording
+      </button>
+
+      <span className={`recording-timer ${isRecording ? 'active' : ''}`}>
+        {formatTime(recordingTime)}
+      </span>
+
+      {selectedTake && !isRecording && (
+        <button className="record-btn download" onClick={handleDownload}>
+          ⬇ Download Video
+        </button>
+      )}
+
+      {/* Pro: transcript + social exports */}
+      {isPro && !isRecording && (
+        <>
+          {selectedTake && (
+            <span className="social-export">
+              {Object.entries(SOCIAL_PRESETS).map(([key, preset]) => (
+                <button
+                  key={key}
+                  className="social-btn"
+                  disabled={Boolean(exporting)}
+                  onClick={() => handleSocialExport(key)}
+                  title={`Export for ${preset.label} (${preset.aspect})`}
+                >
+                  {exporting === preset.label ? '⏳' : '↗'} {preset.label}
+                </button>
+              ))}
+            </span>
+          )}
+          {scriptText.trim() && (
+            <button className="social-btn" onClick={handleTranscriptExport}>
+              📄 Transcript
+            </button>
+          )}
+        </>
+      )}
+      {exportError && <span className="export-error">{exportError}</span>}
+    </div>
+  );
+
   return (
     <div className="teleprompter-container">
       {/* Header */}
@@ -1145,19 +1341,49 @@ export default function TeleprompterScroll() {
         />
       )}
 
+      {/* Workspace: on desktop (≥1024px) this is a 50/50 split — the
+          prompter pane (controls + script + stage) on the left and the
+          camera pane (feed + recording controls) on the right. Below
+          1024px both wrappers use `display: contents`, so the layout
+          computes exactly as the original single-column PIP design. */}
+      <div className="workspace">
+        <div className="prompter-pane">
       {/* Controls */}
       <div className="controls">
-        <div className="control-group">
-          <label>Speed:</label>
+        <div className="control-group speed-group">
+          <label htmlFor="speed-slider">Speed:</label>
           <input
+            id="speed-slider"
             type="range"
-            min="0.5"
-            max="3"
-            step="0.1"
+            min={SPEED_MIN}
+            max={SPEED_MAX}
+            step="0.01"
             value={scrollSpeed}
-            onChange={(e) => setScrollSpeed(parseFloat(e.target.value))}
+            aria-label="Scroll speed"
+            onChange={(e) => applySpeed(e.target.value)}
           />
-          <span>{scrollSpeed.toFixed(1)}x</span>
+          <input
+            className="speed-input"
+            type="number"
+            inputMode="decimal"
+            min={SPEED_MIN}
+            max={SPEED_MAX}
+            step="0.01"
+            value={speedDraft}
+            aria-label="Scroll speed (type a value from 0.1 to 1.0)"
+            title="Type a speed from 0.1 to 1.0"
+            onChange={(e) => {
+              // Keep whatever they typed visible; only commit valid values.
+              setSpeedDraft(e.target.value);
+              const speed = sanitizeSpeed(e.target.value);
+              if (speed !== null) setScrollSpeed(speed);
+            }}
+            onBlur={() => setSpeedDraft(scrollSpeed.toFixed(2))}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') e.currentTarget.blur();
+            }}
+          />
+          <span className="speed-value">{scrollSpeed.toFixed(2)}x</span>
         </div>
 
         <div className="control-group">
@@ -1438,91 +1664,55 @@ export default function TeleprompterScroll() {
           />
         </div>
       </div>
+        </div>{/* /prompter-pane */}
+
+        {/* Desktop ≥1024px: dedicated right-hand camera pane. The floating
+            PIP above is hidden by CSS at this width, but its <video> stays
+            mounted as the compositor's frame source (the long-verified
+            pattern); this pane's <video> simply shows the same MediaStream.
+            Recording controls sit below the feed, inside the pane. */}
+        {isDesktop && (
+          <div className="camera-pane">
+            <div className="camera-pane-feed">
+              <video
+                ref={deskVideoRef}
+                className="camera-video-desktop"
+                autoPlay
+                playsInline
+                muted /* mute preview to avoid feedback; mic still records */
+                style={{ visibility: showPreview ? 'visible' : 'hidden' }}
+              />
+              {!showPreview && !cameraError && (
+                <div className="camera-off-note">
+                  Camera preview hidden — recording still uses the camera
+                </div>
+              )}
+              {cameraError && (
+                <div className="camera-error">
+                  <p>{cameraError}</p>
+                  <button
+                    className="retry-camera-btn"
+                    onClick={() => setCameraAttempt((n) => n + 1)}
+                  >
+                    Retry Camera
+                  </button>
+                </div>
+              )}
+              {!cameraError && showPreview && effectsActive && (
+                <span className="pip-note">effects apply to recording</span>
+              )}
+            </div>
+            {recordingControls}
+          </div>
+        )}
+      </div>{/* /workspace */}
 
       {/* Hidden canvas used to composite effects + captions into the recording */}
       <canvas ref={canvasRef} className="compositing-canvas" aria-hidden="true" />
 
-      {/* Recording controls */}
-      <div className="recording-controls">
-        {!recorderSupported && (
-          <span className="recording-unsupported">
-            Video recording is not supported in this browser. Try the latest
-            Chrome, Edge, Firefox, or Safari.
-          </span>
-        )}
-
-        <button
-          className="record-btn start"
-          onClick={startRecording}
-          disabled={
-            tierBusy ||
-            !canRecord ||
-            !recorderSupported ||
-            !cameraReady ||
-            isRecording
-          }
-        >
-          ⏺ Start Recording
-        </button>
-
-        {tierBusy ? (
-          <span className="tier-checking" role="status">
-            <span className="tier-spinner" aria-hidden="true" />
-            Checking your plan…
-          </span>
-        ) : (
-          !canRecord && (
-            <Link to="/pricing" className="record-locked">
-              🔒 Upgrade to Starter to start recording
-            </Link>
-          )
-        )}
-
-        <button
-          className="record-btn stop"
-          onClick={stopRecording}
-          disabled={!isRecording}
-        >
-          ⏹ Stop Recording
-        </button>
-
-        <span className={`recording-timer ${isRecording ? 'active' : ''}`}>
-          {formatTime(recordingTime)}
-        </span>
-
-        {selectedTake && !isRecording && (
-          <button className="record-btn download" onClick={handleDownload}>
-            ⬇ Download Video
-          </button>
-        )}
-
-        {/* Pro: transcript + social exports */}
-        {isPro && !isRecording && (
-          <>
-            {selectedTake && (
-              <span className="social-export">
-                {Object.entries(SOCIAL_PRESETS).map(([key, preset]) => (
-                  <button
-                    key={key}
-                    className="social-btn"
-                    disabled={Boolean(exporting)}
-                    onClick={() => handleSocialExport(key)}
-                    title={`Export for ${preset.label} (${preset.aspect})`}
-                  >
-                    {exporting === preset.label ? '⏳' : '↗'} {preset.label}
-                  </button>
-                ))}
-              </span>
-            )}
-            {scriptText.trim() && (
-              <button className="social-btn" onClick={handleTranscriptExport}>
-                📄 Transcript
-              </button>
-            )}
-          </>
-        )}
-        {exportError && <span className="export-error">{exportError}</span>}
-      </div>
+      {/* Recording controls — full-width row on phone/tablet only; on
+          desktop the same block renders inside the camera pane above. */}
+      {!isDesktop && recordingControls}
 
       {/* Pro: multiple takes manager */}
       {isPro && takes.length > 0 && !isRecording && (

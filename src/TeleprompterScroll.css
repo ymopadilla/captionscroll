@@ -1107,3 +1107,140 @@
     font-size: 13px;
   }
 }
+
+/* ============================================================
+ * Speed control: slider + precise numeric input + live readout
+ * ============================================================ */
+
+.speed-input {
+  width: 62px;
+  padding: 5px 6px;
+  border: 1px solid #dde2e6;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #2c3e50;
+  background: white;
+  text-align: center;
+}
+
+.speed-input:focus {
+  outline: none;
+  border-color: #0052cc;
+}
+
+/* Invalid entries (out of range / not a number) get a red hint while the
+   last valid speed keeps driving the scroll. */
+.speed-input:invalid {
+  border-color: #dc3545;
+  color: #c82333;
+}
+
+.control-group .speed-value {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0052cc;
+  min-width: 48px;
+}
+
+/* ============================================================
+ * Responsive workspace
+ *
+ * Phone + tablet (<1024px): .workspace and .prompter-pane use
+ * `display: contents`, so their children participate directly in the
+ * .teleprompter-container column flex — the layout computes exactly
+ * as the original full-width-stage + floating-camera-PIP design.
+ *
+ * Desktop (≥1024px): the workspace becomes a 50/50 side-by-side
+ * split — teleprompter on the left, camera + recording controls on
+ * the right — so the script column is narrower and far easier to
+ * read while recording.
+ * ============================================================ */
+
+.workspace,
+.prompter-pane {
+  display: contents;
+}
+
+/* Not rendered below 1024px (JS-gated), but keep CSS defensive. */
+.camera-pane {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .workspace {
+    display: flex;
+    flex-direction: row;
+    flex: 1 1 0;
+    min-height: 0; /* allow the panes to shrink inside 100dvh */
+    width: 100%;
+  }
+
+  /* Left pane: controls + script bar + input + scrolling script. */
+  .prompter-pane {
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 50%;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  /* Right pane: camera feed on top, recording controls below. */
+  .camera-pane {
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 50%;
+    min-width: 0;
+    min-height: 0;
+    border-left: 1px solid #e9ecef;
+  }
+
+  .camera-pane-feed {
+    position: relative; /* anchors error overlay + effects note */
+    flex: 1 1 0;
+    min-height: 120px;
+    background: #0d1117;
+    overflow: hidden;
+  }
+
+  .camera-video-desktop {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    /* Mirror the PREVIEW only (selfie view), like the PIP. The recording
+       uses the raw stream / canvas, so saved video is not mirrored. */
+    transform: scaleX(-1);
+  }
+
+  .camera-off-note {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.75);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 14px;
+  }
+
+  .camera-pane-feed .pip-note {
+    font-size: 12px;
+    bottom: 8px;
+  }
+
+  /* The floating PIP is replaced by the camera pane at this width. Its
+     <video> must STAY MOUNTED (it feeds the recording compositor), so
+     hide it with visibility, never display:none/unmount. */
+  .camera-pip {
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  /* Recording controls live inside the camera pane on desktop. */
+  .camera-pane .recording-controls {
+    border-top: 1px solid #e9ecef;
+    box-shadow: none;
+  }
+}
