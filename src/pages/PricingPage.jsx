@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import NavHeader from '../components/NavHeader';
 import SiteFooter from '../components/SiteFooter';
 import StripeCheckout from '../components/StripeCheckout';
 import { useAuth } from '../hooks/useAuth';
-import { PRICING } from '../lib/tiers';
+import { useSubscription } from '../hooks/useSubscription';
+import { PRICING, TIER_LABELS, TIER_RANK } from '../lib/tiers';
 import usePageMeta from '../lib/usePageMeta';
 import './site.css';
 
@@ -35,7 +36,7 @@ const FAQS = [
   },
   {
     q: 'How does the 14-day free trial work?',
-    a: "Both Starter and Pro start with a 14-day free trial. You won't be charged until the trial ends, and you can cancel anytime before then at no cost.",
+    a: 'Every new account gets one 14-day free trial of Starter or Pro — no credit card required. You choose your tier the first time you open the app. When the trial ends, recording features lock until you upgrade, and your scripts and settings are kept safe.',
   },
   {
     q: 'What payment methods do you accept?',
@@ -46,6 +47,95 @@ const FAQS = [
     a: "If something isn't working for you, contact us within 14 days of a charge and we'll make it right.",
   },
 ];
+
+/**
+ * The action button on a paid tier card, aware of the visitor's state:
+ *   signed out            → "Start Free Trial" → signup (unchanged flow)
+ *   trial-eligible (new)  → starts the 14-day no-card trial right here
+ *   in trial              → "Upgrade — keep <Tier>" → Stripe checkout
+ *   trial expired / free  → "Upgrade to <Tier>" → Stripe checkout
+ *   paid                  → "Current plan" / upgrade to the higher tier
+ */
+function PlanButton({ tier, cycle, sub, user }) {
+  const navigate = useNavigate();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  if (!user) {
+    return (
+      <StripeCheckout tier={tier} cycle={cycle} className="price-btn primary">
+        Start Free Trial
+      </StripeCheckout>
+    );
+  }
+
+  if (sub.loading) {
+    return (
+      <button className="price-btn primary" disabled>
+        …
+      </button>
+    );
+  }
+
+  if (sub.subscriptionStatus === 'active') {
+    if (sub.paidTier === tier) {
+      return (
+        <button className="price-btn current" disabled>
+          ✓ Current plan
+        </button>
+      );
+    }
+    if (TIER_RANK[tier] > TIER_RANK[sub.paidTier]) {
+      return (
+        <StripeCheckout tier={tier} cycle={cycle} className="price-btn primary">
+          Upgrade to {TIER_LABELS[tier]}
+        </StripeCheckout>
+      );
+    }
+    return (
+      <button className="price-btn secondary" disabled>
+        Included in {TIER_LABELS[sub.paidTier]}
+      </button>
+    );
+  }
+
+  if (sub.trialEligible) {
+    const startTrial = async () => {
+      setBusy(true);
+      setError('');
+      try {
+        await sub.startTrial(tier);
+        navigate('/app');
+      } catch (err) {
+        setError(err.message);
+        setBusy(false);
+      }
+    };
+    return (
+      <>
+        <button
+          className="price-btn primary"
+          disabled={busy}
+          onClick={startTrial}
+        >
+          {busy ? 'Starting…' : 'Try free for 14 days'}
+        </button>
+        {error && <p className="checkout-error">{error}</p>}
+      </>
+    );
+  }
+
+  // In trial, trial expired, or plain free: paid checkout.
+  const label =
+    sub.subscriptionStatus === 'trial' && sub.trialTier === tier
+      ? `Upgrade — keep ${TIER_LABELS[tier]}`
+      : `Upgrade to ${TIER_LABELS[tier]}`;
+  return (
+    <StripeCheckout tier={tier} cycle={cycle} className="price-btn primary">
+      {label}
+    </StripeCheckout>
+  );
+}
 
 function Check({ on }) {
   return on ? (
@@ -62,9 +152,11 @@ export default function PricingPage() {
   );
 
   const { user } = useAuth();
+  const sub = useSubscription();
   const [cycle, setCycle] = useState('monthly');
   const [searchParams] = useSearchParams();
   const cancelled = searchParams.get('checkout') === 'cancelled';
+  const subKnown = Boolean(user) && !sub.loading;
 
   const price = (tier) =>
     cycle === 'monthly'
@@ -86,6 +178,28 @@ export default function PricingPage() {
           <p className="pricing-cancelled">
             Checkout was cancelled — no charge was made. Pick a plan whenever
             you're ready.
+          </p>
+        )}
+
+        {/* Account-state banners */}
+        {subKnown && sub.subscriptionStatus === 'trial' && (
+          <p className="pricing-status-note trial">
+            You're on the {TIER_LABELS[sub.tier]} trial —{' '}
+            {sub.trialDaysLeft} {sub.trialDaysLeft === 1 ? 'day' : 'days'} left.
+            Upgrade to keep everything after it ends.
+          </p>
+        )}
+        {subKnown && sub.trialExpired && (
+          <p className="pricing-status-note expired">
+            Your free trial has ended. Upgrade now to keep recording — your
+            scripts and settings are still here.
+          </p>
+        )}
+        {subKnown && sub.subscriptionStatus === 'active' && (
+          <p className="pricing-status-note">
+            You're on the {TIER_LABELS[sub.paidTier]} plan. To manage or cancel
+            your subscription, contact{' '}
+            <a href="mailto:hello@captionscroll.com">hello@captionscroll.com</a>.
           </p>
         )}
 
@@ -139,9 +253,7 @@ export default function PricingPage() {
               <li>Video download</li>
             </ul>
             <p className="price-desc">All you need to create professional videos</p>
-            <StripeCheckout tier="starter" cycle={cycle} className="price-btn primary">
-              Start Free Trial
-            </StripeCheckout>
+            <PlanButton tier="starter" cycle={cycle} sub={sub} user={user} />
           </div>
 
           {/* PRO */}
@@ -162,9 +274,7 @@ export default function PricingPage() {
             <p className="price-desc">
               Broadcast-quality video creation for serious creators
             </p>
-            <StripeCheckout tier="pro" cycle={cycle} className="price-btn primary">
-              Start Free Trial
-            </StripeCheckout>
+            <PlanButton tier="pro" cycle={cycle} sub={sub} user={user} />
           </div>
         </div>
 

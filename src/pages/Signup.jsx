@@ -59,7 +59,7 @@ export default function Signup() {
           <p className="auth-sub">
             {plan
               ? `Sign up to start your 14-day ${plan === 'pro' ? 'Pro' : 'Starter'} trial`
-              : 'Start reading like a pro — free forever'}
+              : 'Start free — then try Starter or Pro for 14 days, no card required'}
           </p>
 
           <label className="auth-label" htmlFor="signup-email">

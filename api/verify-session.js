@@ -109,6 +109,20 @@ export default async function handler(req, res) {
         throw new Error(`Supabase user_subscriptions upsert: ${subErr.message}`);
     }
 
+    // 3. A no-card trial converts on payment: mark it consumed so the
+    //    client derives subscription_status 'active' (not 'trial') and
+    //    the trial can never be re-entered. Best-effort — the table may
+    //    not exist until migration 002 runs, and payment already
+    //    succeeded either way.
+    try {
+      await supabase
+        .from('user_trials')
+        .update({ trial_active: false })
+        .eq('user_id', userId);
+    } catch {
+      /* non-fatal */
+    }
+
     return res.status(200).json({ tier, status: subStatus });
   } catch (err) {
     console.error('verify-session error:', err);

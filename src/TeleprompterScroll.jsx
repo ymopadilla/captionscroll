@@ -4,8 +4,9 @@ import { useAuth } from './hooks/useAuth';
 import { useSubscription } from './hooks/useSubscription';
 import { startCheckout } from './components/StripeCheckout';
 import SubscriptionGate from './components/SubscriptionGate';
+import TrialPicker from './components/TrialPicker';
 import { supabase } from './lib/supabaseClient';
-import { TIER_LABELS } from './lib/tiers';
+import { TIER_LABELS, endedAgoText } from './lib/tiers';
 import { GreenScreenProcessor } from './lib/greenScreen';
 import { SOCIAL_PRESETS, downloadBlob, reencodeTake } from './lib/socialExport';
 import './TeleprompterScroll.css';
@@ -162,7 +163,17 @@ const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
 export default function TeleprompterScroll() {
   /* ---------- account + subscription ---------- */
   const { user, signOut } = useAuth();
-  const { tier, loading: tierLoading, refresh: refreshTier } = useSubscription();
+  const {
+    tier,
+    loading: tierLoading,
+    refresh: refreshTier,
+    subscriptionStatus,
+    trialDaysLeft,
+    trialExpiresAt,
+    trialExpired,
+    trialEligible,
+    startTrial,
+  } = useSubscription();
   // True from first paint when we arrive on a Stripe checkout redirect,
   // until the subscription is verified + refetched. Seeded synchronously
   // from the URL so the UI never flashes a stale FREE state in between.
@@ -180,6 +191,27 @@ export default function TeleprompterScroll() {
   // "checking your plan" indicator instead of tier-dependent UI.
   const tierBusy = tierLoading || confirmingCheckout;
   const canRecord = tier === 'starter' || tier === 'pro';
+
+  /* ---------- 14-day no-card trial UI state ---------- */
+  // "No thanks" is remembered per user so the picker doesn't nag on
+  // every load; they can still start the trial from /pricing later.
+  const pickerDismissKey = `cs-trial-picker-dismissed:${user?.id ?? 'anon'}`;
+  const [pickerDismissed, setPickerDismissed] = useState(() => {
+    try {
+      return window.localStorage.getItem(pickerDismissKey) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const dismissTrialPicker = () => {
+    setPickerDismissed(true);
+    try {
+      window.localStorage.setItem(pickerDismissKey, '1');
+    } catch {
+      /* private mode — session-only dismissal is fine */
+    }
+  };
+  const [trialBannerDismissed, setTrialBannerDismissed] = useState(false);
   const isPro = tier === 'pro';
   const isProRef = useRef(isPro);
   useEffect(() => {
@@ -1024,6 +1056,18 @@ export default function TeleprompterScroll() {
    * ============================================================ */
   const effectsActive = gsMode !== 'off' || filtersActive || showCaptions;
 
+  // First-visit trial picker: only for definitively trial-eligible users
+  // (free tier, no trial record) who aren't mid-checkout and didn't say
+  // "no thanks". Checkout intents (?plan=&cycle=, Stripe redirects) win.
+  const hasCheckoutIntent =
+    searchParams.has('session_id') ||
+    searchParams.get('checkout') === 'success' ||
+    searchParams.has('checkout_success') ||
+    (searchParams.has('plan') && searchParams.has('cycle'));
+  const showTrialPicker =
+    !tierBusy && trialEligible && !pickerDismissed && !hasCheckoutIntent;
+  const inTrial = subscriptionStatus === 'trial';
+
   return (
     <div className="teleprompter-container">
       {/* Header */}
@@ -1038,12 +1082,21 @@ export default function TeleprompterScroll() {
             >
               <span className="tier-spinner" aria-hidden="true" />
             </span>
+          ) : inTrial ? (
+            <span className={`tier-badge tier-${tier} tier-trial`}>
+              {TIER_LABELS[tier].toUpperCase()} TRIAL
+            </span>
           ) : (
             <span className={`tier-badge tier-${tier}`}>{TIER_LABELS[tier]}</span>
           )}
-          {!tierBusy && tier !== 'pro' && (
+          {!tierBusy && inTrial && (
+            <span className="trial-countdown">
+              {trialDaysLeft} {trialDaysLeft === 1 ? 'day' : 'days'} left
+            </span>
+          )}
+          {!tierBusy && (tier !== 'pro' || inTrial) && (
             <Link to="/pricing" className="upgrade-link">
-              ⬆ Upgrade
+              {trialExpired ? '⬆ Upgrade to continue' : '⬆ Upgrade'}
             </Link>
           )}
           <span className="user-email" title={user?.email}>
@@ -1056,6 +1109,41 @@ export default function TeleprompterScroll() {
       </header>
 
       {banner && <div className="app-banner">{banner}</div>}
+
+      {/* Trial-over notice — shown even weeks later; the app itself stays
+          viewable, only recording features are locked. */}
+      {!tierBusy && trialExpired && !trialBannerDismissed && (
+        <div className="trial-ended-banner" role="status">
+          <span className="trial-ended-text">
+            Your free trial ended {endedAgoText(trialExpiresAt)}. Upgrade to
+            keep recording — your scripts are safe either way.
+          </span>
+          <Link to="/pricing" className="trial-ended-upgrade">
+            Upgrade now
+          </Link>
+          <button
+            className="trial-ended-dismiss"
+            aria-label="Dismiss"
+            onClick={() => setTrialBannerDismissed(true)}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* First-visit tier picker: 14 days of Starter or Pro, no card. */}
+      {showTrialPicker && (
+        <TrialPicker
+          startTrial={startTrial}
+          onDismiss={dismissTrialPicker}
+          onStarted={(chosen) => {
+            setBanner(
+              `🎉 Your 14-day ${TIER_LABELS[chosen]} trial has started — everything in ${TIER_LABELS[chosen]} is unlocked!`
+            );
+            setTimeout(() => setBanner(''), 8000);
+          }}
+        />
+      )}
 
       {/* Controls */}
       <div className="controls">

@@ -858,3 +858,44 @@
 .faq-item a:hover {
   text-decoration: underline;
 }
+
+/* ============================================================
+ * 14-day no-card trial — pricing page states
+ * ============================================================ */
+
+.price-btn.current {
+  background: #eaf3ff;
+  color: #0052cc;
+  border: 2px solid #b8d4ff;
+  cursor: default;
+}
+
+.price-btn.secondary:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+/* Signed-in account-state banner on the pricing page */
+.pricing-status-note {
+  max-width: 640px;
+  margin: 0 auto 22px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  background: #eef6ff;
+  border: 1px solid #cfe4ff;
+  color: #17233d;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.pricing-status-note.trial {
+  background: #f0fbf7;
+  border-color: #b9ebd9;
+}
+
+.pricing-status-note.expired {
+  background: #fff4e5;
+  border-color: #ffd9a8;
+  color: #7a4a00;
+  font-weight: 600;
+}

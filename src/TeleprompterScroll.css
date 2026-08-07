@@ -887,3 +887,223 @@
     font-size: 13px;
   }
 }
+
+/* ============================================================
+ * 14-day no-card trial: badge, countdown, ended banner, picker
+ * ============================================================ */
+
+.tier-badge.tier-trial {
+  white-space: nowrap;
+}
+
+.trial-countdown {
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffffff;
+  opacity: 0.9;
+  white-space: nowrap;
+}
+
+/* Persistent notice once the trial window has passed */
+.trial-ended-banner {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 24px;
+  background: #fff4e5;
+  border-bottom: 1px solid #ffd9a8;
+  color: #7a4a00;
+  font-size: 14px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.trial-ended-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.trial-ended-upgrade {
+  flex: 0 0 auto;
+  padding: 6px 14px;
+  border-radius: 6px;
+  background: #0052cc;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.trial-ended-upgrade:hover {
+  background: #0747a6;
+}
+
+.trial-ended-dismiss {
+  flex: 0 0 auto;
+  border: none;
+  background: none;
+  color: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px 6px;
+  opacity: 0.7;
+}
+
+.trial-ended-dismiss:hover {
+  opacity: 1;
+}
+
+/* Full-screen tier picker for brand-new users */
+.trial-picker-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(10, 22, 48, 0.72);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  overflow-y: auto;
+}
+
+.trial-picker {
+  width: 100%;
+  max-width: 680px;
+  max-height: 100%;
+  overflow-y: auto;
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 28px 28px 20px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.35);
+  text-align: center;
+}
+
+.trial-picker h2 {
+  margin: 0 0 6px;
+  font-size: 24px;
+  line-height: 1.2;
+  color: #17233d;
+}
+
+.trial-picker-sub {
+  margin: 0 0 20px;
+  font-size: 14px;
+  color: #4a5670;
+}
+
+.trial-cards {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  text-align: left;
+}
+
+.trial-card {
+  flex: 1 1 0;
+  min-width: 0;
+  border: 1px solid #d7deeb;
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.trial-card-pro {
+  border-color: #0052cc;
+  box-shadow: 0 0 0 1px #0052cc;
+}
+
+.trial-card h3 {
+  margin: 0 0 2px;
+  font-size: 17px;
+  line-height: 1.2;
+  color: #17233d;
+}
+
+.trial-card-tagline {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: #6b7690;
+}
+
+.trial-card ul {
+  margin: 0 0 14px;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #37415c;
+  flex: 1 1 auto;
+}
+
+.trial-choose {
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.trial-choose:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.trial-choose-starter {
+  background: #ffd45e;
+  color: #5a4400;
+}
+
+.trial-choose-starter:hover:not(:disabled) {
+  background: #f5c63e;
+}
+
+.trial-choose-pro {
+  background: #0052cc;
+  color: #ffffff;
+}
+
+.trial-choose-pro:hover:not(:disabled) {
+  background: #0747a6;
+}
+
+.trial-picker-error {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: #b42318;
+}
+
+.trial-picker-skip {
+  margin-top: 14px;
+  border: none;
+  background: none;
+  color: #6b7690;
+  font-size: 13px;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 6px;
+}
+
+.trial-picker-skip:hover {
+  color: #37415c;
+}
+
+@media (max-width: 640px) {
+  .trial-cards {
+    flex-direction: column;
+  }
+
+  .trial-picker {
+    padding: 20px 16px 14px;
+  }
+
+  .trial-ended-banner {
+    flex-wrap: wrap;
+    padding: 8px 12px;
+    gap: 8px;
+    font-size: 13px;
+  }
+}
